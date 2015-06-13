@@ -1,0 +1,46 @@
+package com.iiitb.tr.workflow;
+import java.io.File;
+
+import javax.ws.rs.*;
+import javax.ws.rs.core.MediaType;
+import javax.ws.rs.core.Response;
+
+@Path("/users/doc")
+public class Document {
+	
+	
+	
+	@GET
+	@Path("{trId}")
+	@Produces(MediaType.APPLICATION_OCTET_STREAM)
+	public Response getFile(@PathParam("trId") String trId) {
+		  File file = new File("C:\\Users\\vsriganesh\\Desktop\\OS Processes.pdf");
+		  return Response.ok(file, MediaType.APPLICATION_OCTET_STREAM)
+		      .header("Content-Disposition", "attachment; filename=\"" + file.getName() + "\"" ) //optional
+		      .build();
+		}
+	
+	
+	
+	
+	
+	
+	@PUT
+	@Path("{rollNo}")
+	@Produces(MediaType.TEXT_PLAIN)
+	public String update(@PathParam("rollNo") String rollNo)
+	{
+		return "updated";
+	}
+	
+	
+	
+	@POST
+	@Path("{rollNo}")
+	@Produces(MediaType.TEXT_PLAIN)
+	public String create(@PathParam("rollNo") String rollNo)
+	{
+		return "updated";
+	}
+	
+}

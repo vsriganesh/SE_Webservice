@@ -1,0 +1,53 @@
+package com.iiitb.tr.workflow.dao;
+
+import java.sql.Date;
+import java.util.List;
+
+public class TrDocumentVo {
+		int documentId;
+		List<String> authorList;
+		String description;
+		String currentState;
+		Date currentDate;
+		Date modifyDate;
+		
+		
+		public int getDocumentId() {
+			return documentId;
+		}
+		public void setDocumentId(int documentId) {
+			this.documentId = documentId;
+		}
+		public List<String> getAuthList() {
+			return authorList;
+		}
+		public void setAuthList(List<String> authList) {
+			this.authorList = authList;
+		}
+		public String getDescription() {
+			return description;
+		}
+		public void setDescription(String description) {
+			this.description = description;
+		}
+		public String getCurrentState() {
+			return currentState;
+		}
+		public void setCurrentState(String currentState) {
+			this.currentState = currentState;
+		}
+		public Date getCurrentDate() {
+			return currentDate;
+		}
+		public void setCurrentDate(Date currentDate) {
+			this.currentDate = currentDate;
+		}
+		public Date getModifyDate() {
+			return modifyDate;
+		}
+		public void setModifyDate(Date modifyDate) {
+			this.modifyDate = modifyDate;
+		}
+		
+	
+}

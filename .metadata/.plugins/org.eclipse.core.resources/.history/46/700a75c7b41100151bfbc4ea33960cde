@@ -1,0 +1,93 @@
+package com.iiitb.tr.workflow;
+import java.io.File;
+
+import javax.ws.rs.DELETE;
+import javax.ws.rs.GET;
+import javax.ws.rs.POST;
+import javax.ws.rs.PUT;
+import javax.ws.rs.Path;
+import javax.ws.rs.PathParam;
+import javax.ws.rs.Produces;
+import javax.ws.rs.core.MediaType;
+import javax.ws.rs.core.Response;
+
+@Path("/workflow/doc")
+public class Document {
+	
+	
+	
+	@GET
+	@Path("{trId}")
+	@Produces(MediaType.APPLICATION_OCTET_STREAM)
+	public Response getDoc(@PathParam("trId") String trId) {
+		  File file = new File("C:\\Users\\vsriganesh\\Desktop\\OS Processes.pdf");
+		  return Response.ok(file, MediaType.APPLICATION_OCTET_STREAM)
+		      .header("Content-Disposition", "attachment; filename=\"" + file.getName() + "\"" ) //optional
+		      .build();
+		}
+	
+	
+	
+	
+	
+	
+	@PUT
+	@Path("{rollNo}")
+	@Produces(MediaType.TEXT_PLAIN)
+	public String updateDoc(@PathParam("rollNo") String rollNo)
+	{
+		return "updated";
+	}
+	
+	
+	
+	@POST
+	@Path("{rollNo}")
+	@Produces(MediaType.TEXT_PLAIN)
+	public String createDoc(@PathParam("rollNo") String rollNo)
+	{
+		return "updated";
+	}
+	
+	
+	
+	@DELETE
+	@Path("{rollNo}")
+	@Produces(MediaType.TEXT_PLAIN)
+	public String deleteDoc(@PathParam("rollNo") String rollNo)
+	{
+		return "updated";
+	}
+	
+}
+
+
+/*@GET
+@Path("/{key}")
+public Response download(@PathParam("key") String key,
+                         @Context HttpServletResponse response) throws IOException {
+    try {
+        //Get your File or Object from wherever you want...
+            //you can use the key parameter to indentify your file
+            //otherwise it can be removed
+        //let's say your file is called "object"
+        response.setContentLength((int) object.getContentLength());
+        response.setHeader("Content-Disposition", "attachment; filename="
+                + object.getName());
+        ServletOutputStream outStream = response.getOutputStream();
+        byte[] bbuf = new byte[(int) object.getContentLength() + 1024];
+        DataInputStream in = new DataInputStream(
+                object.getDataInputStream());
+        int length = 0;
+        while ((in != null) && ((length = in.read(bbuf)) != -1)) {
+            outStream.write(bbuf, 0, length);
+        }
+        in.close();
+        outStream.flush();
+    } catch (S3ServiceException e) {
+        e.printStackTrace();
+    } catch (ServiceException e) {
+        e.printStackTrace();
+    }
+    return Response.ok().build();
+}*/

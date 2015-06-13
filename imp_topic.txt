@@ -1,0 +1,11 @@
+GET ==>  Retrieve a resource
+
+POST ==> Create a resourse
+
+PUT ==> Update a resourse
+
+DELETE ==> Delete a resource
+
+
+
+http://www.mkyong.com/webservices/jax-rs/jax-rs-pathparam-example/

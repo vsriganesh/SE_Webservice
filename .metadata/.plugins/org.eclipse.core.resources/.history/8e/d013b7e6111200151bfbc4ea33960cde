@@ -1,0 +1,168 @@
+package com.iiitb.tr.workflow.dao;
+
+import java.sql.Connection;
+import java.sql.ResultSet;
+import java.sql.SQLException;
+import java.sql.Statement;
+import java.util.ArrayList;
+
+
+import org.codehaus.jettison.json.JSONException;
+import org.codehaus.jettison.json.JSONObject;
+
+import com.iiitb.tr.workflow.util.ConnectionPool;
+
+public class WorkflowDaoImpl implements WorkflowDao {
+	
+	
+	public static final String trDocList = "select t.TrID,t.CreationDate,t.ModifyDate,t.Description,s.StateName from trdocument t,state s where t.StateID = s.StateID";
+	
+
+	@Override
+	public ArrayList<JSONObject> getAllUsers() {
+		// TODO Auto-generated method stub
+
+		Connection conn = null;
+		Statement st = null;
+		ResultSet rs = null;
+		ArrayList<JSONObject> retList = null;
+
+		try {
+			conn = ConnectionPool.getConnection();
+			st = conn.createStatement();
+			rs = st.executeQuery("select * from user");
+			JSONObject vo;
+			retList = new ArrayList<JSONObject>();
+			while (rs.next()) {
+				vo = new JSONObject();
+
+				vo.put("User ID ", rs.getInt("UserID"));
+
+				vo.put("User Name ", rs.getString("UserName"));
+				vo.put("User Email ", rs.getString("UserEmail"));
+				vo.put("User Role ", rs.getString("Role"));
+				retList.add(vo);
+			}
+
+		} catch (SQLException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		} catch (JSONException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		} finally {
+
+			try {
+				if (rs != null)
+					rs.close();
+
+				if (st != null)
+					st.close();
+
+				if (conn != null)
+					conn.close();
+
+			} catch (SQLException e) {
+				// TODO Auto-generated catch block
+				e.printStackTrace();
+			}
+		}
+
+		return retList;
+	}
+	
+	@Override
+	public UserVo authenticateUser(String authToken) {
+		// TODO Auto-generated method stub
+		Connection conn = null;
+		java.sql.PreparedStatement pstmt = null;
+		ResultSet rs = null;
+		UserVo vo= null;
+
+		try {
+			conn = ConnectionPool.getConnection();
+			pstmt = conn.prepareStatement("select * from user where Password=?");
+			pstmt.setString(1, authToken);
+			rs = pstmt.executeQuery();
+			
+			while (rs.next()) {
+				vo = new UserVo();
+
+				vo.setUserId(rs.getInt("UserID"));
+
+				vo.setUserName(rs.getString("UserName"));
+				vo.setEmail(rs.getString("UserEmail"));
+				vo.setRole(rs.getString("Role"));
+			}
+
+		} catch (SQLException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		} finally {
+
+			try {
+				if (rs != null)
+					rs.close();
+
+				if (pstmt != null)
+					pstmt.close();
+
+				if (conn != null)
+					conn.close();
+
+			} catch (SQLException e) {
+				// TODO Auto-generated catch block
+				e.printStackTrace();
+			}
+		}
+
+		return vo;
+
+	}
+
+	@Override
+	public ArrayList<JSONObject> trList() {
+		Connection conn = null;
+		Statement pstmt = null;
+		ResultSet rs = null;
+		JSONObject vo= null;
+
+		try {
+			conn = ConnectionPool.getConnection();
+			pstmt = conn.createStatement();
+			rs = pstmt.executeQuery(trDocList);
+			
+			while (rs.next()) {
+				vo = new JSONObject();
+
+				vo.put("Document ID ",rs.getInt("TrID"));
+				vo.put("Author Name ", value);
+			}
+
+		} catch (SQLException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		} finally {
+
+			try {
+				if (rs != null)
+					rs.close();
+
+				if (pstmt != null)
+					pstmt.close();
+
+				if (conn != null)
+					conn.close();
+
+			} catch (SQLException e) {
+				// TODO Auto-generated catch block
+				e.printStackTrace();
+			}
+		}
+
+		return vo;
+	}
+
+	
+
+}

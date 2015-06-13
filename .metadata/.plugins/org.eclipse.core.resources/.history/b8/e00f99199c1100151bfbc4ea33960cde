@@ -1,0 +1,11 @@
+package com.iiitb.tr.workflow.dao;
+
+import java.util.ArrayList;
+
+import org.json.simple.JSONObject;
+
+public interface WorkflowDao {
+
+	public ArrayList<JSONObject> getAllUsers();
+	
+}

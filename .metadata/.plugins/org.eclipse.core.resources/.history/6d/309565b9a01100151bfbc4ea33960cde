@@ -1,0 +1,18 @@
+package com.iiitb.tr.workflow;
+import javax.ws.rs.*;
+import javax.ws.rs.core.MediaType;
+
+@Path("/workflow/doc")
+public class Document {
+	
+	
+	@PUT
+	@Path("{rollNo}")
+	@Produces(MediaType.TEXT_PLAIN)
+	public String update(@PathParam("rollNo") String rollNo)
+	{
+		return "updated";
+	}
+	
+	
+}

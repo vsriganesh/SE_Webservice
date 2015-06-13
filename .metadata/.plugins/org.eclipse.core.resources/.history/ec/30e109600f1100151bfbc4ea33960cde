@@ -1,0 +1,18 @@
+package com.iiitb.tr.workflow;
+import javax.ws.rs.*;
+import javax.ws.rs.core.MediaType;
+
+
+@Path("/workflow/users")
+public class User {
+
+	@GET
+	@Path("{auth}")
+	@Produces(MediaType.TEXT_PLAIN)
+	public String getAllUsers(@PathParam("auth") String authToken)
+	{
+		return "";
+	}
+	
+	
+}

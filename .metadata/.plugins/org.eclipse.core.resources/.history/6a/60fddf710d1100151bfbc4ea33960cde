@@ -1,0 +1,44 @@
+package com.iiitb.tr.workflow.dao;
+
+import java.sql.Connection;
+import java.sql.ResultSet;
+import java.sql.SQLException;
+import java.sql.Statement;
+import java.util.ArrayList;
+
+import com.iiitb.tr.workflow.util.ConnectionPool;
+
+public class WorkflowDaoImpl implements WorkflowDao {
+
+	@Override
+	public ArrayList<UserVo> getAllUsers() {
+		// TODO Auto-generated method stub
+		
+		Connection conn;
+		Statement st;
+		ResultSet rs;
+		
+		try {
+			conn = ConnectionPool.getConnection();
+			st = conn.createStatement();
+			rs = st.executeQuery("select * from user");
+			UserVo vo;
+			while(rs.next())
+			{
+				vo = new UserVo();
+				vo.setUserId(rs.getInt("UserID"));
+				vo.setEmail(rs.getString("UserEmail"));
+				vo.setUserName(rs.getString("UserName"));
+				
+			}
+			
+		} catch (SQLException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
+		
+		
+		return null;
+	}
+
+}

@@ -1,0 +1,48 @@
+package com.iiitb.tr.workflow;
+import java.util.ArrayList;
+import java.util.Iterator;
+
+import javax.ws.rs.*;
+import javax.ws.rs.core.MediaType;
+
+import org.json.simple.JSONObject;
+
+import com.iiitb.tr.workflow.dao.UserVo;
+import com.iiitb.tr.workflow.dao.WorkflowDao;
+import com.iiitb.tr.workflow.dao.WorkflowDaoImpl;
+
+
+@Path("/users")
+public class User {
+
+	@GET
+	@Path("{auth}")
+	@Produces(MediaType.TEXT_PLAIN)
+	public String getAllUsers(@PathParam("auth") String authToken)
+	{
+		
+		WorkflowDao dao = new WorkflowDaoImpl();
+		ArrayList<UserVo> userList =  dao.getAllUsers();
+		ArrayList<JSONObject> jb = new ArrayList<JSONObject>();
+		Iterator<UserVo> iter = userList.iterator();
+		JSONObject obj;
+		UserVo vo;
+		while(iter.hasNext())
+		{
+			vo = iter.next();
+			obj = new JSONObject();
+			obj.put("Name :",vo.getUserName());
+			obj.put("ID :", vo.getUserId());
+			jb.add(obj);
+		}
+		
+		//System.out.println(jb.toString());
+		return userList.toString();
+		
+		
+		
+		
+	}
+	
+	
+}

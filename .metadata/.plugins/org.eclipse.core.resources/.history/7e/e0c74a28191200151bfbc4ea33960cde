@@ -1,0 +1,212 @@
+package com.iiitb.tr.workflow.dao;
+
+import java.sql.Connection;
+import java.sql.ResultSet;
+import java.sql.SQLException;
+import java.sql.Statement;
+import java.util.ArrayList;
+
+
+import java.util.List;
+
+import org.codehaus.jettison.json.JSONException;
+import org.codehaus.jettison.json.JSONObject;
+
+import com.iiitb.tr.workflow.util.ConnectionPool;
+
+public class WorkflowDaoImpl implements WorkflowDao {
+	
+	
+	public static final String trDocList = "select t.TrID,t.CreationDate,t.ModifyDate,t.Description,s.StateName from trdocument t,state s where t.StateID = s.StateID";
+	
+
+	@Override
+	public ArrayList<JSONObject> getAllUsers() {
+		// TODO Auto-generated method stub
+
+		Connection conn = null;
+		Statement st = null;
+		ResultSet rs = null;
+		ArrayList<JSONObject> retList = null;
+
+		try {
+			conn = ConnectionPool.getConnection();
+			st = conn.createStatement();
+			rs = st.executeQuery("select * from user");
+			JSONObject vo;
+			retList = new ArrayList<JSONObject>();
+			while (rs.next()) {
+				vo = new JSONObject();
+
+				vo.put("User ID ", rs.getInt("UserID"));
+
+				vo.put("User Name ", rs.getString("UserName"));
+				vo.put("User Email ", rs.getString("UserEmail"));
+				vo.put("User Role ", rs.getString("Role"));
+				retList.add(vo);
+			}
+
+		} catch (SQLException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		} catch (JSONException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		} finally {
+
+			try {
+				if (rs != null)
+					rs.close();
+
+				if (st != null)
+					st.close();
+
+				if (conn != null)
+					conn.close();
+
+			} catch (SQLException e) {
+				// TODO Auto-generated catch block
+				e.printStackTrace();
+			}
+		}
+
+		return retList;
+	}
+	
+	@Override
+	public UserVo authenticateUser(String authToken) {
+		// TODO Auto-generated method stub
+		Connection conn = null;
+		java.sql.PreparedStatement pstmt = null;
+		ResultSet rs = null;
+		UserVo vo= null;
+
+		try {
+			conn = ConnectionPool.getConnection();
+			pstmt = conn.prepareStatement("select * from user where Password=?");
+			pstmt.setString(1, authToken);
+			rs = pstmt.executeQuery();
+			
+			while (rs.next()) {
+				vo = new UserVo();
+
+				vo.setUserId(rs.getInt("UserID"));
+
+				vo.setUserName(rs.getString("UserName"));
+				vo.setEmail(rs.getString("UserEmail"));
+				vo.setRole(rs.getString("Role"));
+			}
+
+		} catch (SQLException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		} finally {
+
+			try {
+				if (rs != null)
+					rs.close();
+
+				if (pstmt != null)
+					pstmt.close();
+
+				if (conn != null)
+					conn.close();
+
+			} catch (SQLException e) {
+				// TODO Auto-generated catch block
+				e.printStackTrace();
+			}
+		}
+
+		return vo;
+
+	}
+
+	@Override
+	public ArrayList<JSONObject> trList() {
+		Connection conn = null;
+		Statement pstmt = null;
+		Statement pstmt1 = null;
+		ResultSet rs = null;
+		ResultSet rs1 = null;
+		JSONObject vo= null;
+		List<String> authList =null;
+		List<JSONObject> retList = null;
+
+		try {
+			conn = ConnectionPool.getConnection();
+			pstmt = conn.createStatement();
+			pstmt1 = conn.createStatement();
+			rs = pstmt.executeQuery(trDocList);
+			retList = new ArrayList<JSONObject>();
+			
+			while (rs.next()) {
+				vo = new JSONObject();
+				authList = new ArrayList<String>();
+				vo.put("Document ID ",rs.getInt("TrID"));
+				
+				rs1 =  pstmt1.executeQuery("select u.UserName from user u , doc_auth d where d.trID="+rs.getInt("TrID")+" and d.UserID = u.UserID");
+				while (rs1.next()) 
+				{
+					authList.add(rs1.getString("UserName"));
+				}
+				
+			
+				
+				vo.put("Author Name ", authList);
+				vo.put("Creation Date ", rs.getDate("CreationDate"));
+				vo.put("Modification Date ", rs.getDate("ModifyDate"));
+				vo.put("Description ", rs.getString("Description"));
+				vo.put("Current State ", rs.getString("StateName"));
+				
+				retList.add(vo);
+			}
+
+		} catch (SQLException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		} catch (JSONException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		} finally {
+
+			try {
+				if(rs1!=null)
+					rs1.close();
+				
+				if (rs != null)
+					rs.close();
+
+				if (pstmt1 != null)
+					pstmt1.close();
+				
+				if (pstmt != null)
+					pstmt.close();
+
+				if (conn != null)
+					conn.close();
+
+			} catch (SQLException e) {
+				// TODO Auto-generated catch block
+				e.printStackTrace();
+			}
+		}
+
+		return ((ArrayList<JSONObject>)retList);
+	}
+
+	@Override
+	public void newTrCreation() {
+		// TODO Auto-generated method stub
+		
+	}
+
+	@Override
+	public String getTrId() {
+		// TODO Auto-generated method stub
+		return null;
+	}
+
+	
+
+}

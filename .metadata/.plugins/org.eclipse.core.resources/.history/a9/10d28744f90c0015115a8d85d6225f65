@@ -1,0 +1,24 @@
+package com.iiitb.test;
+
+import javax.ws.rs.*;
+import javax.ws.rs.core.MediaType;
+
+@Path("/workflow")
+public class TestWS {
+
+	/*
+	 * @GET
+	 * 
+	 * @Produces(MediaType.TEXT_PLAIN) public String test() { return
+	 * "Hi. My first webservice test"; }
+	 */
+
+	@PUT
+	@Path("{rollNo}")
+	@Consumes(MediaType.TEXT_PLAIN)
+	@Produces(MediaType.TEXT_PLAIN)
+	public String updateDB(@Path("rollNo") String test) {
+		return "updated";
+	}
+
+}
