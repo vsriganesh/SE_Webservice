@@ -1,0 +1,26 @@
+package com.iiitb.tr.workflow.dao;
+
+import java.util.ArrayList;
+
+public interface WorkflowDao {
+
+	public ArrayList<String> getAllUsers();
+
+	public UserVo authenticateUser(String authToken);
+	
+	public ArrayList<String> trList();
+	
+	public int createUser(String userName,String password,String email,String role);
+	
+	public int deleteUser(String userName);
+	
+	public int updateUser(String userName,String email,String role);
+	
+	
+	public void newTrCreation();
+	
+	public String getTrId();
+	
+	
+	
+}

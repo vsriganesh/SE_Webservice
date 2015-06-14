@@ -1,0 +1,15 @@
+package com.iiitb.tr.workflow.util;
+
+public class PasswordCreation {
+	
+	public String createPassword()
+	{
+		return (Long.toHexString(Double.doubleToLongBits(Math.random())));
+	}
+	
+	public static void main(String args[])
+	{
+		System.out.println((Long.toHexString(Double.doubleToLongBits(Math.random()))));
+	}
+
+}

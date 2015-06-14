@@ -1,0 +1,30 @@
+package com.iiitb.tr.workflow.util;
+
+public class PasswordCreation {
+	
+	public String createPassword()
+	{
+		return (Long.toHexString(Double.doubleToLongBits(Math.random())));
+	}
+	
+	public static void main(String args[])
+	{
+		System.out.println((Long.toHexString(Double.doubleToLongBits(Math.random()))));
+		   StringBuilder sb = new StringBuilder();
+		   StringBuilder sb1 = new StringBuilder();
+		   byte[] bytes = "Ganesh".getBytes();
+		   for (int i=0; i<bytes.length; i++) {
+		        sb.append(String.format("%02X ",bytes[i]));
+		    }
+		    System.out.println(sb.toString());
+		    String[] temp = sb.toString().split(" ");
+		   
+		    for(int i =0 ;i<temp.length;i++)
+		    {
+		    	sb1.append(temp[i].charAt(0));
+		    }
+		    
+		    System.out.println(sb1.toString());
+	}
+
+}

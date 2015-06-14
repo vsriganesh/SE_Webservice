@@ -10,10 +10,10 @@ public class UserVo implements Serializable {
 	private static final long serialVersionUID = 1L;
 	
 	
-	int userId;
-	String userName;
-	String email;
-	String role;
+	private int userId;
+	private String userName;
+	private String email;
+	private String role;
 	
 	
 	

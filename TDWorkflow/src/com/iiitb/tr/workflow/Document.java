@@ -5,6 +5,9 @@ import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
+import java.util.ArrayList;
+import java.util.Iterator;
+import java.util.List;
 
 import javax.ws.rs.Consumes;
 import javax.ws.rs.DELETE;
@@ -17,6 +20,11 @@ import javax.ws.rs.Produces;
 import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.Response;
 
+import org.codehaus.jackson.JsonGenerationException;
+import org.codehaus.jackson.map.JsonMappingException;
+import org.codehaus.jackson.map.ObjectMapper;
+
+import com.iiitb.tr.workflow.dao.TrDocumentVo;
 import com.iiitb.tr.workflow.dao.UserVo;
 import com.iiitb.tr.workflow.dao.WorkflowDao;
 import com.iiitb.tr.workflow.dao.WorkflowDaoImpl;
@@ -29,38 +37,76 @@ import com.sun.jersey.multipart.FormDataMultiPart;
 public class Document {
 	private static final String SERVER_UPLOAD_LOCATION_FOLDER = "C://Users/vsriganesh/Desktop/upload_files/";
 
-	
 	@GET
 	@Path("{auth}")
 	@Produces(MediaType.TEXT_PLAIN)
-	public String getTrDocList(@PathParam("auth") String auth)
-	{
+	public String getTrDocList(@PathParam("auth") String auth) {
 		WorkflowDao dao = new WorkflowDaoImpl();
 		UserVo vo = dao.authenticateUser(auth);
-		
-		if(vo!=null && vo.getRole().equalsIgnoreCase(Constants.ADMIN))
-		{
-				
-		
-			return (dao.trList().toString());
+
+		if (vo != null) {
+				if(vo.getRole().equalsIgnoreCase(Constants.ADMIN))
+			return (dao.trList(Constants.ADMIN).toString());
+				else
+				{
+					ObjectMapper mapper = new ObjectMapper();
+					List<String> retList = new ArrayList<String>();
+					List<Object> tempList = new ArrayList<Object>();
+					tempList = dao.trList(Constants.NORMAL);
+					Iterator iter = tempList.iterator();
+					TrDocumentVo temp;
+					while(iter.hasNext())
+					{
+						temp = (TrDocumentVo)iter.next();
+						if(temp.getAuthList().contains(vo.getUserName()) || temp.getReviewerList().contains(vo.getUserName()))
+						{
+							try {
+								retList.add(mapper.writerWithDefaultPrettyPrinter().writeValueAsString(temp));
+							} catch (JsonGenerationException e) {
+								// TODO Auto-generated catch block
+								e.printStackTrace();
+							} catch (JsonMappingException e) {
+								// TODO Auto-generated catch block
+								e.printStackTrace();
+							} catch (IOException e) {
+								// TODO Auto-generated catch block
+								e.printStackTrace();
+							}
+						}
+					}
+					return retList.toString();
+				}
 		}
-		
-		else	
-		return "Sorry!!! You are not authorized to view the requested URI";
+
+		else
+			return "Sorry!!! You are not authorized to view the requested URI";
 	}
-	
-	
+
 	@GET
 	@Path("{trId}/{auth}")
 	@Produces(MediaType.APPLICATION_OCTET_STREAM)
 	public Response getDoc(@PathParam("trId") String trId,
 			@PathParam("auth") String auth) {
-		File file = new File("C:\\Users\\vsriganesh\\Desktop\\OS Processes.pdf");
+		WorkflowDao dao = new WorkflowDaoImpl();
+		UserVo vo = dao.authenticateUser(auth);
+
+		if (vo != null) {
+		
+			TrDocumentVo ret = dao.getTrDetails(trId);
+			if(ret!=null && ((ret.getAuthList().contains(vo.getUserName())) || (ret.getReviewerList().contains(vo.getUserName()))) )
+			{
+		File file = new File("C:\\Users\\vsriganesh\\Desktop\\upload_files\\"+trId+"."+ret.getDescription());
 		return Response
 				.ok(file, MediaType.APPLICATION_OCTET_STREAM)
 				.header("Content-Disposition",
 						"attachment; filename=\"" + file.getName() + "\"") // optional
 				.build();
+	}
+			else
+				return Response.ok("Sorry!!! You are not authorized to view the requested URI",MediaType.TEXT_PLAIN).build();	
+		}
+		else
+			return Response.ok("Sorry!!! You are not authorized to view the requested URI",MediaType.TEXT_PLAIN).build();
 	}
 
 	@PUT
@@ -79,27 +125,53 @@ public class Document {
 	@Path("{auth}")
 	@Consumes(MediaType.MULTIPART_FORM_DATA)
 	@Produces(MediaType.TEXT_HTML)
-	
 	public String uploadFile(FormDataMultiPart form,
 			@PathParam("auth") String auth) {
 
-		FormDataBodyPart filePart = form.getField("file");
+		WorkflowDao dao = new WorkflowDaoImpl();
+		UserVo vo = dao.authenticateUser(auth);
 
-		ContentDisposition headerOfFilePart = filePart.getContentDisposition();
+		if (vo != null) {
+			FormDataBodyPart filePart = form.getField("file");
 
-		InputStream fileInputStream = filePart.getValueAs(InputStream.class);
+			ContentDisposition headerOfFilePart = filePart
+					.getContentDisposition();
 
-		String filePath = SERVER_UPLOAD_LOCATION_FOLDER
-				+ headerOfFilePart.getFileName();
+			InputStream fileInputStream = filePart
+					.getValueAs(InputStream.class);
 
-		// save the file to the server
+			// Make DB entry
 
-		saveFile(fileInputStream, filePath);
+			String trId = dao.newTrCreation(headerOfFilePart.getFileName(),vo);
 
-		
-		
-		return "<html><body> <b><u><center>File uploaded successfully</center></u></b> </body> </html>";
+			// save the file to the server
+			if (trId != null) {
+				
+				String format[] = headerOfFilePart.getFileName().split("\\.");
+				
+				System.out.println("format length "+format.length);
+				
+				String filePath;
+				if (format.length == 2) {
+					filePath = SERVER_UPLOAD_LOCATION_FOLDER + trId + "."
+							+ format[1];
+				} else
+					filePath = SERVER_UPLOAD_LOCATION_FOLDER + trId;
 
+				System.out.println("file path "+filePath);
+				saveFile(fileInputStream, filePath);
+
+				return "<html><body> <u><center>File :<b>"
+						+ headerOfFilePart.getFileName()
+						+ " </b>uploaded successfully</center></u></b> <br/><center> Document ID : <b>"+trId+"</b></center>  </body> </html>";
+			}
+
+			else
+				return "<html><body> <u><center>File :<b>"
+						+ headerOfFilePart.getFileName()
+						+ " </b>upload failed</center></u></b> </body> </html>";
+		} else
+			return "Sorry!!! You are not authorized to view the requested URI";
 	}
 
 	// save uploaded file to a defined location on the server
@@ -137,11 +209,39 @@ public class Document {
 	}
 
 	@DELETE
-	@Path("{rollNo}")
+	@Path("{trId}/{auth}")
 	@Produces(MediaType.TEXT_PLAIN)
-	public String deleteDoc(@PathParam("rollNo") String rollNo) {
-		return "updated";
+	public String deleteDoc(@PathParam("trId") String trId,
+			@PathParam("auth") String auth) {
+		WorkflowDao dao = new WorkflowDaoImpl();
+		UserVo vo = dao.authenticateUser(auth);
+
+		if (vo != null) {
+		
+			TrDocumentVo ret = dao.getTrDetails(trId);
+			if(ret!=null && ((ret.getAuthList().contains(vo.getUserName())) && (!ret.getCurrentState().equalsIgnoreCase(Constants.PUBLISHED))))
+			{
+					
+					if(dao.deleteTrDocument(trId)!=0)
+					{
+					File file = new File("C:\\Users\\vsriganesh\\Desktop\\upload_files\\"+trId+"."+ret.getDescription());
+					file.deleteOnExit();
+					return "File deleted !!!!! ";
+					}
+					else
+						return "Sorry!!!! Unable to delete file";
+						
+			}
+			
+			else
+				return "Sorry!!! You are not authorized to view the requested URI";
+
+			}
+		else
+			return "Sorry!!! You are not authorized to view the requested URI";
+		
 	}
+	
 
 }
 

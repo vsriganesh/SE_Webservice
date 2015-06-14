@@ -4,7 +4,7 @@
   <display-name>TDWorkflow</display-name>
   
   <welcome-file-list>
- <welcome-file>form.html</welcome-file> 
+ <welcome-file>upload.html</welcome-file> 
   </welcome-file-list>
   
   <servlet>

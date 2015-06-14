@@ -8,9 +8,5 @@
 	</classpathentry>
 	<classpathentry kind="con" path="org.eclipse.jst.j2ee.internal.web.container"/>
 	<classpathentry kind="con" path="org.eclipse.jst.j2ee.internal.module.container"/>
-	<classpathentry kind="lib" path="C:/Users/vsriganesh/Desktop/jersey-multipart-1.9.jar"/>
-	<classpathentry kind="lib" path="C:/Users/vsriganesh/Desktop/mimepull-1.6.jar"/>
-	<classpathentry kind="lib" path="C:/Users/vsriganesh/Downloads/jersey-core-1.9.jar"/>
-	<classpathentry kind="lib" path="C:/Users/vsriganesh/Downloads/jersey-server-1.9.jar"/>
 	<classpathentry kind="output" path="build/classes"/>
 </classpath>

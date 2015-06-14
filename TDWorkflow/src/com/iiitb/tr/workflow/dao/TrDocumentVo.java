@@ -5,19 +5,27 @@ import java.sql.Date;
 import java.util.List;
 
 public class TrDocumentVo implements Serializable {
-		/**
-	 * 
-	 */
+		
+	
 	private static final long serialVersionUID = 1L;
 	
 	
 		int documentId;
 		List<String> authorList;
+		List<String> reviewerList;
 		String description;
 		String currentState;
 		Date creationDate;
 		Date modifyDate;
 		
+		
+		
+		public List<String> getReviewerList() {
+			return reviewerList;
+		}
+		public void setReviewerList(List<String> reviewerList) {
+			this.reviewerList = reviewerList;
+		}
 		
 		public int getDocumentId() {
 			return documentId;

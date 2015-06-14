@@ -1,7 +1,0 @@
-package com.iiitb.tr.workflow;
-import javax.ws.rs.*;
-
-@Path("/workflow/upload")
-public class DocUpload {
-
-}
