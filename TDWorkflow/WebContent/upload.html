@@ -7,13 +7,22 @@
 <body>
 <h1>Upload a File</h1>
  
-	<form action="workflow/doc/WJGFFLDM0123KM" method="post" enctype="multipart/form-data">
+	<form action="workflow/doc" method="put" enctype="multipart/form-data">
  
+ 
+ 		<p>
+	  	Auth ID : <input type ="text" name = "auth" size="45"/></p><br/><br/><br/>
+	  	
 	   <p>
 		Select a file : <input type="file" name="file" size="45" />
 	   </p>
- 
-	   <input type="submit" value="Upload It" />
+ 		Other Authors (comma separated) : <input type ="text" name = "authors" size="45"/><br/>
+	   <br/><br/><p style="padding-left:200px"><input type="submit" value="Upload It" /></p>
+	   
+	   <br/><br/><br/>
+	   To update Document , <a href="update.html">click here</a>
+	   
+	   
 	</form>
 
 </body>

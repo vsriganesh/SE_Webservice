@@ -13,8 +13,10 @@
 		<item value="false" key="casesensitive"/>
 		<item value="false" key="incremental"/>
 		<item value="false" key="wholeword"/>
-		<item value="userDeletion" key="selection"/>
+		<item value="userEmailUpdation" key="selection"/>
 		<list key="findhistory">
+			<item value="userEmailUpdation"/>
+			<item value="mapper"/>
 			<item value="userDeletion"/>
 			<item value="TrId"/>
 		</list>

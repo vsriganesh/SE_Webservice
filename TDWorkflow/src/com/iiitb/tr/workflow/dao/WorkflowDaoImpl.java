@@ -32,6 +32,10 @@ import org.codehaus.jackson.map.ObjectMapper;
 
 
 
+
+
+
+
 import com.iiitb.tr.workflow.util.ConnectionPool;
 import com.iiitb.tr.workflow.util.Constants;
 
@@ -52,7 +56,17 @@ public class WorkflowDaoImpl implements WorkflowDao {
 	public static final String TrDocDeletion = "delete from trdocument where TrID =?";
 	public static final String TrDocAuthDeletion = "delete from doc_auth where TrID =?";
 	public static final String TrDocReviewDeletion = "delete from doc_review where TrID =?";
+	public static final String USER_DETAILS = "select * from user where UserName like ?";
+	public static final String REVIEWER_DETAILS = "select u.UserID,u.UserName,u.Role,u.UserEmail from doc_review d , user u where d.UserID = u.UserID";
+	public static final String REVIEWER_DETAILS_DOC = "select t.TrID,t.CreationDate,t.ModifyDate,t.Description,s.StateName from trdocument t,state s,doc_review d where t.StateID = s.StateID and d.TrID = t.TrID and d.UserID = ?";
 	
+	
+	public static final String DOC_STATE = "update trdocument set StateID = ? where trID = ?";
+	public static final String UPDATE_TR_DESCRIPTION = "update trdocument set Description = ? where TrID=?";
+	public static final String CHECK_DOC_AUTH = "select * from doc_auth where TrID = ? and UserID = ?";
+	
+	
+	public static final String COMMENTS_DOC_REVIEW = "insert into notification_doc_review (DocRevID,Message,NotificationDate) values (?,?,?)";
 	
 	@Override
 	public ArrayList<String> getAllUsers() {
@@ -163,6 +177,70 @@ public class WorkflowDaoImpl implements WorkflowDao {
 		return vo;
 
 	}
+	
+	
+	@Override
+	public ArrayList<String> getUserDetail(String userName) {
+		// TODO Auto-generated method stub
+
+		Connection conn = null;
+		PreparedStatement st = null;
+		ResultSet rs = null;
+		ArrayList<String> retList = null;
+		ObjectMapper mapper = new ObjectMapper();
+
+		try {
+			conn = ConnectionPool.getConnection();
+			st = conn.prepareStatement(USER_DETAILS);
+			st.setString(1, "%"+userName+"%");
+			rs = st.executeQuery();
+			UserVo vo;
+			retList = new ArrayList<String>();
+			while (rs.next()) {
+				vo = new UserVo();
+
+				vo.setUserId(rs.getInt("UserID"));
+
+				vo.setUserName(rs.getString("UserName"));
+				vo.setEmail(rs.getString("UserEmail"));
+				vo.setRole(rs.getString("Role"));
+				
+				retList.add(mapper.writerWithDefaultPrettyPrinter().writeValueAsString(vo));
+			}
+
+		} catch (SQLException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}  catch (JsonGenerationException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		} catch (JsonMappingException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		} catch (IOException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		} finally {
+
+			try {
+				if (rs != null)
+					rs.close();
+
+				if (st != null)
+					st.close();
+
+				if (conn != null)
+					conn.close();
+
+			} catch (SQLException e) {
+				// TODO Auto-generated catch block
+				e.printStackTrace();
+			}
+		}
+
+		return retList;
+	}
+	
 
 	@Override
 	public ArrayList<Object> trList(String role) {
@@ -269,7 +347,7 @@ public class WorkflowDaoImpl implements WorkflowDao {
 	}
 
 	@Override
-	public String newTrCreation(String fileName,UserVo vo) {
+	public String newTrCreation(String fileName,UserVo vo,String authors) {
 		// TODO Auto-generated method stub
 		Connection conn = null;
 		PreparedStatement pstmt = null;
@@ -302,6 +380,11 @@ public class WorkflowDaoImpl implements WorkflowDao {
 			if(trId!=null)
 			{
 				docAuthUpdate(trId,String.valueOf(vo.getUserId()));
+				String tempAuthors[] = authors.split(",");
+				for(String temp : tempAuthors)
+				{
+					docAuthUpdate(trId,temp);
+				}
 				
 			}
 			
@@ -616,15 +699,39 @@ public class WorkflowDaoImpl implements WorkflowDao {
 	public int docAuthUpdate(String trId, String userId) {
 		Connection conn = null;
 		PreparedStatement pstmt = null;
+		PreparedStatement pstmt1 = null;
+		ResultSet rs = null;
+		boolean check = true;
 		int retVal=0;
 
 		try {
 			conn = ConnectionPool.getConnection();
-			pstmt = conn.prepareStatement(DOC_AUTH_UPDATE);
-			pstmt.setString(1, trId);
-			pstmt.setString(2, userId);
 			
-			retVal = pstmt.executeUpdate();
+			
+	
+			pstmt1 = conn.prepareStatement(CHECK_DOC_AUTH);
+			pstmt1.setString(1, trId);
+			pstmt1.setString(2, userId);
+			rs = pstmt1.executeQuery();
+		
+			
+			while(rs.next())
+			{
+				check = false;
+			}
+				
+				
+				if(check)
+				{
+				pstmt = conn.prepareStatement(DOC_AUTH_UPDATE);
+				pstmt.setString(1, trId);
+				pstmt.setString(2, userId);
+				retVal = pstmt.executeUpdate();
+				}
+				
+			
+			
+			
 		}
 		catch(SQLException e)
 		{
@@ -635,6 +742,13 @@ public class WorkflowDaoImpl implements WorkflowDao {
 		{
 			try {
 			
+				if (rs != null)
+					rs.close();
+				
+				
+				if (pstmt1 != null)
+					pstmt1.close();
+				
 				
 				if (pstmt != null)
 					pstmt.close();
@@ -747,6 +861,257 @@ public class WorkflowDaoImpl implements WorkflowDao {
 			conn = ConnectionPool.getConnection();
 			pstmt = conn.prepareStatement(TrDocReviewDeletion);
 			pstmt.setString(1, trId);
+			
+			retVal = pstmt.executeUpdate();
+		}
+		catch(SQLException e)
+		{
+			e.printStackTrace();
+		}
+		
+		finally
+		{
+			try {
+			
+				
+				if (pstmt != null)
+					pstmt.close();
+
+				if (conn != null)
+					conn.close();
+
+			} catch (SQLException e) {
+				// TODO Auto-generated catch block
+				e.printStackTrace();
+			}
+		}
+		return retVal;
+	}
+
+	@Override
+	public ArrayList<String> getReviewerDetails() {
+		Connection conn = null;
+		PreparedStatement st = null;
+		ResultSet rs = null;
+		ArrayList<String> retList = null;
+		ObjectMapper mapper = new ObjectMapper();
+
+		try {
+			conn = ConnectionPool.getConnection();
+			st = conn.prepareStatement(REVIEWER_DETAILS);
+			rs = st.executeQuery();
+			UserVo vo;
+			retList = new ArrayList<String>();
+			while (rs.next()) {
+				vo = new UserVo();
+
+				vo.setUserId(rs.getInt("UserID"));
+
+				vo.setUserName(rs.getString("UserName"));
+				vo.setEmail(rs.getString("UserEmail"));
+				vo.setRole(rs.getString("Role"));
+				
+				retList.add(mapper.writerWithDefaultPrettyPrinter().writeValueAsString(vo));
+			}
+
+		} catch (SQLException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}  catch (JsonGenerationException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		} catch (JsonMappingException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		} catch (IOException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		} finally {
+
+			try {
+				if (rs != null)
+					rs.close();
+
+				if (st != null)
+					st.close();
+
+				if (conn != null)
+					conn.close();
+
+			} catch (SQLException e) {
+				// TODO Auto-generated catch block
+				e.printStackTrace();
+			}
+		}
+
+		return retList;
+	}
+
+	@Override
+	public ArrayList<String> getReviewerDocDetails(String reviewerId) {
+		
+		Connection conn = null;
+		PreparedStatement pstmt = null;
+		Statement pstmt1 = null;
+		Statement pstmt2 = null;
+		ResultSet rs = null;
+		ResultSet rs1 = null;
+		ResultSet rs2 = null;
+		TrDocumentVo vo= null;
+		List<String> authList =null;
+		List<String> reviewerList =null;
+		
+		List<String> retList = null;
+		ObjectMapper mapper = new ObjectMapper();
+		try {
+			conn = ConnectionPool.getConnection();
+			pstmt = conn.prepareStatement(REVIEWER_DETAILS_DOC);
+			pstmt.setString(1, reviewerId);
+			pstmt1 = conn.createStatement();
+			pstmt2 = conn.createStatement();
+			
+			rs = pstmt.executeQuery();
+			
+			retList= new ArrayList<String>();
+			reviewerList=new ArrayList<String>();;
+			
+			while (rs.next()) {
+				vo = new TrDocumentVo();
+				authList = new ArrayList<String>();
+				vo.setDocumentId(rs.getInt("TrID"));
+				
+				rs1 =  pstmt1.executeQuery("select u.UserName from user u , doc_auth d where d.trID="+rs.getInt("TrID")+" and d.UserID = u.UserID");
+				while (rs1.next()) 
+				{
+					authList.add(rs1.getString("UserName"));
+				}
+				vo.setAuthList(authList);
+				
+				rs2 =  pstmt2.executeQuery("select u.UserName from user u , doc_review d where d.trID="+rs.getInt("TrID")+" and d.UserID = u.UserID");
+				while (rs2.next()) 
+				{
+					reviewerList.add(rs2.getString("UserName"));
+				}
+				vo.setReviewerList(reviewerList);
+				
+				vo.setCreation(rs.getDate("CreationDate"));
+				vo.setModifyDate(rs.getDate("ModifyDate"));
+				vo.setDescription(rs.getString("Description"));
+				vo.setCurrentState(rs.getString("StateName"));
+				
+				retList.add(mapper.writerWithDefaultPrettyPrinter().writeValueAsString(vo));
+				
+					
+			}
+
+		} catch (SQLException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}  catch (JsonGenerationException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		} catch (JsonMappingException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		} catch (IOException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		} finally {
+
+			try {
+				if(rs2!=null)
+					rs1.close();
+				
+				if(rs1!=null)
+					rs1.close();
+				
+				if (rs != null)
+					rs.close();
+
+				if (pstmt2 != null)
+					pstmt1.close();
+				
+				if (pstmt1 != null)
+					pstmt1.close();
+				
+				if (pstmt != null)
+					pstmt.close();
+
+				if (conn != null)
+					conn.close();
+
+			} catch (SQLException e) {
+				// TODO Auto-generated catch block
+				e.printStackTrace();
+			}
+		}
+
+		return ((ArrayList<String>)retList);
+		
+
+	}
+
+	@Override
+	public int setDocState(int trId,int state) {
+		Connection conn = null;
+		PreparedStatement pstmt = null;
+		int retVal=0;
+
+		try {
+			conn = ConnectionPool.getConnection();
+			
+			
+			pstmt = conn.prepareStatement(DOC_STATE);
+			pstmt.setInt(1, state);
+			pstmt.setInt(2, trId);
+			
+			
+			retVal = pstmt.executeUpdate();
+		}
+		catch(SQLException e)
+		{
+			e.printStackTrace();
+		}
+		
+		finally
+		{
+			try {
+			
+				
+				if (pstmt != null)
+					pstmt.close();
+
+				if (conn != null)
+					conn.close();
+
+			} catch (SQLException e) {
+				// TODO Auto-generated catch block
+				e.printStackTrace();
+			}
+		}
+		return retVal;
+	}
+
+	@Override
+	public void addCommentsDocReview(String trId, String comments) {
+		// TODO Auto-generated method stub
+		
+	}
+
+	@Override
+	public int updateTrDescription(String updateDocId,String description) {
+		Connection conn = null;
+		PreparedStatement pstmt = null;
+		int retVal=0;
+
+		try {
+			conn = ConnectionPool.getConnection();
+			
+			
+			pstmt = conn.prepareStatement(UPDATE_TR_DESCRIPTION);
+			pstmt.setString(1, description);
+			pstmt.setString(2, updateDocId);
+			
 			
 			retVal = pstmt.executeUpdate();
 		}

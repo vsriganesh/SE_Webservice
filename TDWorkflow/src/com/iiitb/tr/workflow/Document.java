@@ -23,6 +23,7 @@ import javax.ws.rs.core.Response;
 import org.codehaus.jackson.JsonGenerationException;
 import org.codehaus.jackson.map.JsonMappingException;
 import org.codehaus.jackson.map.ObjectMapper;
+import org.codehaus.jettison.json.JSONObject;
 
 import com.iiitb.tr.workflow.dao.TrDocumentVo;
 import com.iiitb.tr.workflow.dao.UserVo;
@@ -30,8 +31,10 @@ import com.iiitb.tr.workflow.dao.WorkflowDao;
 import com.iiitb.tr.workflow.dao.WorkflowDaoImpl;
 import com.iiitb.tr.workflow.util.Constants;
 import com.sun.jersey.core.header.ContentDisposition;
+import com.sun.jersey.core.header.FormDataContentDisposition;
 import com.sun.jersey.multipart.FormDataBodyPart;
 import com.sun.jersey.multipart.FormDataMultiPart;
+import com.sun.jersey.multipart.FormDataParam;
 
 @Path("/doc")
 public class Document {
@@ -109,12 +112,131 @@ public class Document {
 			return Response.ok("Sorry!!! You are not authorized to view the requested URI",MediaType.TEXT_PLAIN).build();
 	}
 
-	@PUT
-	@Path("{rollNo}")
-	@Produces(MediaType.TEXT_PLAIN)
-	public String updateDoc(@PathParam("rollNo") String rollNo) {
-		return "updated";
+	@POST
+	@Path("/update")
+	@Consumes(MediaType.MULTIPART_FORM_DATA)
+	@Produces(MediaType.TEXT_HTML)
+	public String updateFile(@FormDataParam("file") InputStream fileInputStream,
+            @FormDataParam("file") FormDataContentDisposition headerOfFilePart,@FormDataParam("authors") String authors,@FormDataParam("comments") String comments,
+            @FormDataParam("auth") String auth,@FormDataParam("trid") String updateDocId) {
+
+		
+		System.out.println(auth);
+		
+		WorkflowDao dao = new WorkflowDaoImpl();
+		UserVo vo = dao.authenticateUser(auth.trim());
+
+			if (vo != null) {
+		
+				
+				
+			// Check DB entry
+					TrDocumentVo trVo = dao.getTrDetails(updateDocId);
+			if( trVo!=null && trVo.getAuthList().contains(vo.getUserName()) &&
+					!((trVo.getCurrentState().equalsIgnoreCase(Constants.PUBLISHED) ||  trVo.getCurrentState().equalsIgnoreCase(Constants.RFP) ||  trVo.getCurrentState().equalsIgnoreCase(Constants.RCP))))
+				
+			{
+				if(trVo.getCurrentState().equalsIgnoreCase(Constants.RAP))
+				{
+					dao.setDocState(Integer.parseInt(updateDocId),1);
+				}
+				else if(trVo.getCurrentState().equalsIgnoreCase(Constants.ARP) && (headerOfFilePart.getFileName()!=null && headerOfFilePart.getFileName().length()!=0))
+					dao.setDocState(Integer.parseInt(updateDocId),2);
+				
+				
+				File file = new File("C:\\Users\\vsriganesh\\Desktop\\upload_files\\"+updateDocId+"."+trVo.getDescription());
+				file.setWritable(true);
+				file.delete();
+				
+				
+				
+				
+				
+					// update name and format in DB
+					
+				if(headerOfFilePart.getFileName()!=null && headerOfFilePart.getFileName().length()!=0)		
+				dao.updateTrDescription(updateDocId,headerOfFilePart.getFileName());
+					
+					
+					// update authors
+					
+					if(authors!=null || authors!="")
+					{
+						String[] tempAuthor = authors.split(",");
+						for(String temp : tempAuthor)
+						{
+							dao.docAuthUpdate(updateDocId, temp);
+							
+						}
+						
+						
+					}
+					
+					if(headerOfFilePart.getFileName()!=null && headerOfFilePart.getFileName()!="")	
+					System.out.println("if(headerOfFilePart!=null)	"+headerOfFilePart);
+					
+					//update metadata of TR Document
+					if(headerOfFilePart.getFileName()!=null && headerOfFilePart.getFileName()!="")	
+					{
+					String format[] = headerOfFilePart.getFileName().split("\\.");
+				
+				
+				String filePath;
+				if (format.length == 2) {
+					filePath = SERVER_UPLOAD_LOCATION_FOLDER + updateDocId + "."
+							+ format[1];
+				} else
+					filePath = SERVER_UPLOAD_LOCATION_FOLDER + updateDocId;
+
+				
+				
+				saveFile(fileInputStream, filePath);
+				
+				
+				try {
+					if(fileInputStream!=null)
+					{
+					fileInputStream.close();
+					fileInputStream=null;
+					System.gc();
+					}
+				} catch (IOException e) {
+					// TODO Auto-generated catch block
+					e.printStackTrace();
+				}
+					}
+				
+				return "<html><body> <u><center>File :<b>"
+				+ headerOfFilePart.getFileName()
+				+ " </b>updated successfully</center></u></b> <br/><center> Document ID : <b>"+updateDocId+"</b></center>  </body> </html>";
+				
+			}
+				
+			else
+				return "Sorry!!! Current state of the document does not allow update to be performed";
+		
+			
+			
 	}
+	
+			else
+				return "Sorry!!! You are not authorized to view the requested URI";
+			
+	}
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
 
 	/**
 	 * 
@@ -122,27 +244,23 @@ public class Document {
 	 */
 
 	@POST
-	@Path("{auth}")
 	@Consumes(MediaType.MULTIPART_FORM_DATA)
 	@Produces(MediaType.TEXT_HTML)
-	public String uploadFile(FormDataMultiPart form,
-			@PathParam("auth") String auth) {
+	public String uploadFile(@FormDataParam("file") InputStream fileInputStream,
+            @FormDataParam("file") FormDataContentDisposition headerOfFilePart,@FormDataParam("authors") String authors,
+            @FormDataParam("auth") String auth) {
 
+		
+		
+		
 		WorkflowDao dao = new WorkflowDaoImpl();
-		UserVo vo = dao.authenticateUser(auth);
+		UserVo vo = dao.authenticateUser(auth.trim());
 
-		if (vo != null) {
-			FormDataBodyPart filePart = form.getField("file");
-
-			ContentDisposition headerOfFilePart = filePart
-					.getContentDisposition();
-
-			InputStream fileInputStream = filePart
-					.getValueAs(InputStream.class);
-
+	if (vo != null) {
+		
 			// Make DB entry
 
-			String trId = dao.newTrCreation(headerOfFilePart.getFileName(),vo);
+			String trId = dao.newTrCreation(headerOfFilePart.getFileName(),vo,authors);
 
 			// save the file to the server
 			if (trId != null) {
@@ -158,9 +276,20 @@ public class Document {
 				} else
 					filePath = SERVER_UPLOAD_LOCATION_FOLDER + trId;
 
-				System.out.println("file path "+filePath);
+				
+				
 				saveFile(fileInputStream, filePath);
-
+				try {
+					if(fileInputStream!=null)
+					{
+					fileInputStream.close();
+					fileInputStream=null;
+					System.gc();
+					}
+				} catch (IOException e) {
+					// TODO Auto-generated catch block
+					e.printStackTrace();
+				}
 				return "<html><body> <u><center>File :<b>"
 						+ headerOfFilePart.getFileName()
 						+ " </b>uploaded successfully</center></u></b> <br/><center> Document ID : <b>"+trId+"</b></center>  </body> </html>";
@@ -170,9 +299,15 @@ public class Document {
 				return "<html><body> <u><center>File :<b>"
 						+ headerOfFilePart.getFileName()
 						+ " </b>upload failed</center></u></b> </body> </html>";
-		} else
+		}
 			return "Sorry!!! You are not authorized to view the requested URI";
 	}
+	
+	
+	
+	
+	
+	
 
 	// save uploaded file to a defined location on the server
 
@@ -197,8 +332,12 @@ public class Document {
 			}
 
 			outpuStream.flush();
-
+			uploadedInputStream.close();
+			uploadedInputStream=null;
 			outpuStream.close();
+			outpuStream=null;
+			System.gc();
+					
 
 		} catch (IOException e) {
 
@@ -225,7 +364,8 @@ public class Document {
 					if(dao.deleteTrDocument(trId)!=0)
 					{
 					File file = new File("C:\\Users\\vsriganesh\\Desktop\\upload_files\\"+trId+"."+ret.getDescription());
-					file.deleteOnExit();
+					file.setWritable(true);
+					file.delete();
 					return "File deleted !!!!! ";
 					}
 					else

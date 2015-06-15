@@ -6,6 +6,8 @@ import java.util.ArrayList;
 public interface WorkflowDao {
 
 	public ArrayList<String> getAllUsers();
+	public ArrayList<String> getUserDetail(String userName);
+	
 
 	public UserVo authenticateUser(String authToken);
 	
@@ -18,7 +20,7 @@ public interface WorkflowDao {
 	public int updateUser(String userName,String email,String role);
 	
 	
-	public String newTrCreation(String fileName,UserVo vo);
+	public String newTrCreation(String fileName,UserVo vo,String authors);
 	
 	public String getTrId(String fileName);
 	
@@ -34,6 +36,17 @@ public interface WorkflowDao {
 	public int docAuthDeletion(String trId);
 	
 	public int docReviewDeletion(String trId);
+	
+	public ArrayList<String> getReviewerDetails();
+	
+	public ArrayList<String> getReviewerDocDetails(String reviewerId);
+	
+	public int setDocState(int trId,int state);
+	
+	public void addCommentsDocReview(String trId , String comments);
+	
+	public int updateTrDescription(String updateDocId, String Description);
+	
 	
 	
 	

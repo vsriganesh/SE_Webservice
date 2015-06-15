@@ -1,7 +1,5 @@
 package com.iiitb.tr.workflow;
 
-import java.util.ArrayList;
-
 import javax.ws.rs.Consumes;
 import javax.ws.rs.DELETE;
 import javax.ws.rs.GET;
@@ -25,6 +23,32 @@ import com.iiitb.tr.workflow.util.PasswordCreation;
 public class User {
 
 	@GET
+	@Path("{auth}/{username}")
+	@Produces(MediaType.TEXT_PLAIN)
+	public String getUserDetails(@PathParam("auth") String authToken,@PathParam("username") String author) {
+
+		WorkflowDao dao = new WorkflowDaoImpl();
+		UserVo vo = dao.authenticateUser(authToken);
+
+		if (vo != null) {
+
+			dao = new WorkflowDaoImpl();
+
+			try {
+				return dao.getUserDetail(author).toString();
+			} catch (Exception e) {
+				// TODO Auto-generated catch block
+				e.printStackTrace();
+			}
+		} else
+			return "Sorry!!! You are not authorized to view the requested URI";
+		
+		
+		return "Sorry!!! You are not authorized to view the requested URI";
+	}
+	
+	
+	@GET
 	@Path("{auth}")
 	@Produces(MediaType.TEXT_PLAIN)
 	public String getAllUsers(@PathParam("auth") String authToken) {
@@ -40,6 +64,7 @@ public class User {
 		} else
 			return "Sorry!!! You are not authorized to view the requested URI";
 	}
+	
 
 	@PUT
 	@Path("{auth}")
@@ -73,7 +98,7 @@ public class User {
 				{
 					role =null;
 				}
-				System.out.println("role is "+role);
+			
 				
 				if (dao.updateUser(userName,email,role) == 0) {
 					return "<html> <body> <center> Sorry !!! Unable to update user :  <b>"
