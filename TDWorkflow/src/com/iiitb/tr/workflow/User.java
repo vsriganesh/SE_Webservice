@@ -41,10 +41,10 @@ public class User {
 				e.printStackTrace();
 			}
 		} else
-			return "Sorry!!! You are not authorized to view the requested URI";
+			return Constants.INVALIDUSER;
 		
 		
-		return "Sorry!!! You are not authorized to view the requested URI";
+		return Constants.INVALIDUSER;
 	}
 	
 	
@@ -62,7 +62,7 @@ public class User {
 
 			return dao.getAllUsers().toString();
 		} else
-			return "Sorry!!! You are not authorized to view the requested URI";
+			return Constants.INVALIDUSER;
 	}
 	
 
@@ -114,7 +114,7 @@ public class User {
 				e.printStackTrace();
 			}
 
-			return "Sorry!!! You are not authorized to view the requested URI";
+			return Constants.INVALIDUSER;
 
 	}
 
@@ -148,7 +148,7 @@ public class User {
 			e.printStackTrace();
 		}
 
-		return "Sorry!!! You are not authorized to view the requested URI";
+		return Constants.INVALIDUSER;
 	}
 
 	@DELETE
@@ -181,7 +181,7 @@ public class User {
 			e.printStackTrace();
 		}
 
-		return "Sorry!!! You are not authorized to view the requested URI";
+		return Constants.INVALIDUSER;
 
 	}
 }

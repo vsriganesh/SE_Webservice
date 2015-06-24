@@ -12,14 +12,45 @@ public class TrDocumentVo implements Serializable {
 	
 		int documentId;
 		List<String> authorList;
+		public List<UserVo> getAuthors() {
+			return authors;
+		}
+		public void setAuthors(List<UserVo> authors) {
+			this.authors = authors;
+		}
+		public List<UserVo> getReviewers() {
+			return reviewers;
+		}
+		public void setReviewers(List<UserVo> reviewers) {
+			this.reviewers = reviewers;
+		}
 		List<String> reviewerList;
+		
+		List<UserVo> authors;
+		List<UserVo> reviewers;
+		
+		
 		String description;
 		String currentState;
 		Date creationDate;
 		Date modifyDate;
+		int reviewerCount;
+		int currentCount;
 		
 		
 		
+		public int getReviewerCount() {
+			return reviewerCount;
+		}
+		public void setReviewerCount(int reviewerCount) {
+			this.reviewerCount = reviewerCount;
+		}
+		public int getCurrentCount() {
+			return currentCount;
+		}
+		public void setCurrentCount(int currentCount) {
+			this.currentCount = currentCount;
+		}
 		public List<String> getReviewerList() {
 			return reviewerList;
 		}

@@ -1,0 +1,72 @@
+package com.iiitb.tr.workflow;
+
+import javax.ws.rs.Consumes;
+import javax.ws.rs.DELETE;
+import javax.ws.rs.GET;
+import javax.ws.rs.POST;
+import javax.ws.rs.Path;
+import javax.ws.rs.PathParam;
+import javax.ws.rs.Produces;
+import javax.ws.rs.core.MediaType;
+
+import org.codehaus.jettison.json.JSONException;
+import org.codehaus.jettison.json.JSONObject;
+import org.codehaus.jettison.json.JSONTokener;
+
+import com.iiitb.tr.workflow.dao.UserVo;
+import com.iiitb.tr.workflow.dao.WorkflowDao;
+import com.iiitb.tr.workflow.dao.WorkflowDaoImpl;
+import com.iiitb.tr.workflow.dao.WorkflowDaoImpl1;
+
+@Path("/comment")
+public class Comment {
+	
+	@GET
+	@Path("{auth}/{TrID}")
+	@Produces(MediaType.TEXT_PLAIN)
+	public String getComments(@PathParam("auth") String authToken,@PathParam("TrID") int TrId){
+		WorkflowDao dao=new WorkflowDaoImpl();
+		UserVo user=dao.authenticateUser(authToken);
+		WorkflowDaoImpl1 dao1=new WorkflowDaoImpl1();
+		JSONObject response=dao1.getComments(user.getUserId(),user.getRole(),TrId);
+		return(response.toString());
+		
+	}
+	
+	
+	@POST
+	@Path("{auth}")
+	@Produces(MediaType.TEXT_PLAIN)
+	@Consumes(MediaType.APPLICATION_JSON)
+	public String postComment(@PathParam("auth") String authToken,JSONObject requestBody){
+		WorkflowDaoImpl dao=new WorkflowDaoImpl();
+		UserVo user=dao.authenticateUser(authToken);
+		WorkflowDaoImpl1 dao1=new WorkflowDaoImpl1();
+		String message=null;
+		if(user.getRole().equalsIgnoreCase("Normal"))
+			message = dao1.postComment(user.getUserId(),user.getRole(),requestBody);
+		return(message);
+	}
+	
+	@DELETE
+	@Path("{auth}/{commentid}")
+	@Produces(MediaType.TEXT_PLAIN)
+	public String deleteComment(@PathParam("auth") String authToken,@PathParam("commentid") int commentId){
+		WorkflowDaoImpl dao=new WorkflowDaoImpl();
+		UserVo user=dao.authenticateUser(authToken);
+		WorkflowDaoImpl1 dao1=new WorkflowDaoImpl1();
+		String message=null;
+    	message = dao1.deleteComment(user.getUserId(),user.getRole(),commentId);
+		return(message);
+	}
+	
+	
+	
+	
+	
+	
+	
+	
+	
+
+}

@@ -1,6 +1,7 @@
 package com.iiitb.tr.workflow;
 
 import javax.ws.rs.GET;
+import javax.ws.rs.POST;
 import javax.ws.rs.Path;
 import javax.ws.rs.PathParam;
 import javax.ws.rs.Produces;
@@ -14,7 +15,7 @@ import com.iiitb.tr.workflow.util.Constants;
 public class Reviewer {
 
 	@GET
-	@Path("{auth}")
+	@Path("/admin/{auth}")
 	@Produces(MediaType.TEXT_PLAIN)
 	public String getReviewerList(@PathParam("auth") String authToken) {
 
@@ -32,10 +33,10 @@ public class Reviewer {
 				e.printStackTrace();
 			}
 		} else
-			return "Sorry!!! You are not authorized to view the requested URI";
+			return Constants.INVALIDUSER;
 		
 		
-		return "Sorry!!! You are not authorized to view the requested URI";
+		return Constants.INVALIDUSER;
 	}
 	
 	
@@ -43,7 +44,7 @@ public class Reviewer {
 	
 	
 	@GET
-	@Path("{auth}/{userid}")
+	@Path("/admin/{auth}/{userid}")
 	@Produces(MediaType.TEXT_PLAIN)
 	public String getReviewerListForDoc(@PathParam("auth") String authToken,@PathParam("userid") String reviewer) {
 
@@ -61,11 +62,76 @@ public class Reviewer {
 				e.printStackTrace();
 			}
 		} else
-			return "Sorry!!! You are not authorized to view the requested URI";
+			return Constants.INVALIDUSER;
 		
 		
-		return "Sorry!!! You are not authorized to view the requested URI";
+		return Constants.INVALIDUSER;
 	}
+	
+	
+	
+	@POST
+	@Path("{auth}/accept/{TrID}")
+	@Produces(MediaType.TEXT_PLAIN)
+	
+	/***********************************************************
+	 *  This would make the issuer the reviewer of TrID
+	 * @return Success message
+	 */
+	public String acceptTask(@PathParam("auth") String authToken,@PathParam("TrID") int TrId){
+		String message = null;
+		WorkflowDao dao=new WorkflowDaoImpl();
+		UserVo user=dao.authenticateUser(authToken);
+		if(user!=null){
+		
+		message=dao.acceptTask(user.getUserId(),TrId);
+		return message;
+		}
+		else
+			return Constants.INVALIDUSER;
+		
+	}
+	
+	
+	@POST
+	@Path("{auth}/reject/{TrID}")
+	@Produces(MediaType.TEXT_PLAIN)
+	
+	/***********************************************************
+	 *  This would make the issuer the reviewer of TrID
+	 * @return Success message
+	 */
+	public String rejectTask(@PathParam("auth") String authToken,@PathParam("TrID") int TrId){
+		String message = null;
+		WorkflowDao dao=new WorkflowDaoImpl();
+		UserVo user=dao.authenticateUser(authToken);
+		if(user!=null){
+		message=dao.rejectTask(user.getUserId(),TrId);
+		return message;
+		}
+		else
+			return Constants.INVALIDUSER;
+		
+	}
+	
+	
+	@GET
+	@Path("{auth}")
+	@Produces(MediaType.TEXT_PLAIN)
+	
+	/***********************************************************
+	 *  This would make the issuer the reviewer of TrID
+	 * @return Success message
+	 */
+	public String showTasks(@PathParam("auth") String authToken){
+		String message = null;
+		WorkflowDao dao=new WorkflowDaoImpl();
+		UserVo user=dao.authenticateUser(authToken);
+		
+		message=dao.showTasks(user.getUserId());
+		return message;	
+	}
+
 	
 	
 }

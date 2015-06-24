@@ -5,7 +5,9 @@ import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
+import java.text.SimpleDateFormat;
 import java.util.ArrayList;
+import java.util.Date;
 import java.util.Iterator;
 import java.util.List;
 
@@ -13,7 +15,6 @@ import javax.ws.rs.Consumes;
 import javax.ws.rs.DELETE;
 import javax.ws.rs.GET;
 import javax.ws.rs.POST;
-import javax.ws.rs.PUT;
 import javax.ws.rs.Path;
 import javax.ws.rs.PathParam;
 import javax.ws.rs.Produces;
@@ -23,17 +24,13 @@ import javax.ws.rs.core.Response;
 import org.codehaus.jackson.JsonGenerationException;
 import org.codehaus.jackson.map.JsonMappingException;
 import org.codehaus.jackson.map.ObjectMapper;
-import org.codehaus.jettison.json.JSONObject;
 
 import com.iiitb.tr.workflow.dao.TrDocumentVo;
 import com.iiitb.tr.workflow.dao.UserVo;
 import com.iiitb.tr.workflow.dao.WorkflowDao;
 import com.iiitb.tr.workflow.dao.WorkflowDaoImpl;
 import com.iiitb.tr.workflow.util.Constants;
-import com.sun.jersey.core.header.ContentDisposition;
 import com.sun.jersey.core.header.FormDataContentDisposition;
-import com.sun.jersey.multipart.FormDataBodyPart;
-import com.sun.jersey.multipart.FormDataMultiPart;
 import com.sun.jersey.multipart.FormDataParam;
 
 @Path("/doc")
@@ -46,7 +43,7 @@ public class Document {
 	public String getTrDocList(@PathParam("auth") String auth) {
 		WorkflowDao dao = new WorkflowDaoImpl();
 		UserVo vo = dao.authenticateUser(auth);
-
+		System.out.println("vo "+vo);
 		if (vo != null) {
 				if(vo.getRole().equalsIgnoreCase(Constants.ADMIN))
 			return (dao.trList(Constants.ADMIN).toString());
@@ -82,7 +79,7 @@ public class Document {
 		}
 
 		else
-			return "Sorry!!! You are not authorized to view the requested URI";
+			return Constants.INVALIDUSER;
 	}
 
 	@GET
@@ -106,10 +103,10 @@ public class Document {
 				.build();
 	}
 			else
-				return Response.ok("Sorry!!! You are not authorized to view the requested URI",MediaType.TEXT_PLAIN).build();	
+				return Response.ok("Sorry!!! You are not authorized to view the requested document",MediaType.TEXT_PLAIN).build();	
 		}
 		else
-			return Response.ok("Sorry!!! You are not authorized to view the requested URI",MediaType.TEXT_PLAIN).build();
+			return Response.ok(Constants.INVALIDUSER,MediaType.TEXT_PLAIN).build();
 	}
 
 	@POST
@@ -142,11 +139,16 @@ public class Document {
 				}
 				else if(trVo.getCurrentState().equalsIgnoreCase(Constants.ARP) && (headerOfFilePart.getFileName()!=null && headerOfFilePart.getFileName().length()!=0))
 					dao.setDocState(Integer.parseInt(updateDocId),2);
-				
-				
-				File file = new File("C:\\Users\\vsriganesh\\Desktop\\upload_files\\"+updateDocId+"."+trVo.getDescription());
+				File file =null;
+				if(trVo.getDescription().length()!=0 && headerOfFilePart.getFileName().length()!=0)
+					file = new File("C:\\Users\\vsriganesh\\Desktop\\upload_files\\"+updateDocId+"."+trVo.getDescription());
+				else
+					file = new File("C:\\Users\\vsriganesh\\Desktop\\upload_files\\"+updateDocId);
+				if(file!=null)
+				{
 				file.setWritable(true);
 				file.delete();
+				}
 				
 				
 				
@@ -155,13 +157,30 @@ public class Document {
 					// update name and format in DB
 					
 				if(headerOfFilePart.getFileName()!=null && headerOfFilePart.getFileName().length()!=0)		
-				dao.updateTrDescription(updateDocId,headerOfFilePart.getFileName());
+				{
+						dao.updateTrDescription(updateDocId,headerOfFilePart.getFileName());
+						
+						dao.updateTrCurrentCount(updateDocId,trVo.getReviewerCount());
+						
+						
+				}
 					
 					
+				// update modify date
+				
+				Date date = new Date();
+				SimpleDateFormat df = new SimpleDateFormat("yyyy/M/dd");
+				dao.updateTrModifyDate(updateDocId,df.format(date));
+				
+				
 					// update authors
-					
-					if(authors!=null || authors!="")
+				
+				
+					if(authors!=null && authors!="" && authors.length()!=0)
 					{
+						
+						
+						
 						String[] tempAuthor = authors.split(",");
 						for(String temp : tempAuthor)
 						{
@@ -172,11 +191,10 @@ public class Document {
 						
 					}
 					
-					if(headerOfFilePart.getFileName()!=null && headerOfFilePart.getFileName()!="")	
-					System.out.println("if(headerOfFilePart!=null)	"+headerOfFilePart);
 					
-					//update metadata of TR Document
-					if(headerOfFilePart.getFileName()!=null && headerOfFilePart.getFileName()!="")	
+					
+					
+					if(headerOfFilePart.getFileName()!=null && headerOfFilePart.getFileName()!="" && headerOfFilePart.getFileName().length()!=0 )	
 					{
 					String format[] = headerOfFilePart.getFileName().split("\\.");
 				
@@ -220,7 +238,7 @@ public class Document {
 	}
 	
 			else
-				return "Sorry!!! You are not authorized to view the requested URI";
+				return Constants.INVALIDUSER;
 			
 	}
 	
@@ -248,7 +266,7 @@ public class Document {
 	@Produces(MediaType.TEXT_HTML)
 	public String uploadFile(@FormDataParam("file") InputStream fileInputStream,
             @FormDataParam("file") FormDataContentDisposition headerOfFilePart,@FormDataParam("authors") String authors,
-            @FormDataParam("auth") String auth) {
+            @FormDataParam("auth") String auth,@FormDataParam("trid") String updateDocId) {
 
 		
 		
@@ -300,7 +318,7 @@ public class Document {
 						+ headerOfFilePart.getFileName()
 						+ " </b>upload failed</center></u></b> </body> </html>";
 		}
-			return "Sorry!!! You are not authorized to view the requested URI";
+			return Constants.INVALIDUSER;
 	}
 	
 	
@@ -374,11 +392,11 @@ public class Document {
 			}
 			
 			else
-				return "Sorry!!! You are not authorized to view the requested URI";
+				return Constants.INVALIDUSER;
 
 			}
 		else
-			return "Sorry!!! You are not authorized to view the requested URI";
+			return Constants.INVALIDUSER;
 		
 	}
 	

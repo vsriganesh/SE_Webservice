@@ -6,7 +6,7 @@ import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
-import java.text.DateFormat;
+
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 
@@ -36,26 +36,31 @@ import org.codehaus.jackson.map.ObjectMapper;
 
 
 
+
+
+import org.codehaus.jettison.json.JSONException;
+import org.codehaus.jettison.json.JSONObject;
+
 import com.iiitb.tr.workflow.util.ConnectionPool;
 import com.iiitb.tr.workflow.util.Constants;
 
 public class WorkflowDaoImpl implements WorkflowDao {
 	
 	
-	public static final String trDocList = "select t.TrID,t.CreationDate,t.ModifyDate,t.Description,s.StateName from trdocument t,state s where t.StateID = s.StateID";
-	public static final String userCreation = "insert into user (UserName,UserEmail,Password,Role) values (?,?,?,?)";
-	public static final String userDeletion = "delete from user where UserName =?";
-	public static final String userEmailUpdation = "update user set UserEmail =? where UserName =?";
-	public static final String userRoleUpdation = "update user set Role =? where UserName =?";
-	public static final String userUpdation = "update user set UserEmail =? and Role =? where UserName =?";
-	public static final String trCreation = "insert into trdocument (CreationDate,ModifyDate,StateID,Description,ReviewerCount,CurrentCount) values (?,?,?,?,?,?)";
-	public static final String trId = "select TrID from trdocument where Description = ?";
-	public static final String TR_DETAILS= "select t.TrID,t.CreationDate,t.ModifyDate,t.Description,s.StateName from trdocument t,state s where t.StateID = s.StateID and t.TrID=?";
+	public static final String TR_DOC_LIST = "select t.TrID,t.CreationDate,t.ModifyDate,t.Description,t.ReviewerCount,t.CurrentCount,s.StateName from trdocument t,state s where t.StateID = s.StateID";
+	public static final String USER_CREATION = "insert into user (UserName,UserEmail,Password,Role) values (?,?,?,?)";
+	public static final String USER_DELETION = "delete from user where UserName =?";
+	public static final String USER_EMAIL_UPDATION = "update user set UserEmail =? where UserName =?";
+	public static final String USER_ROLE_UPDATION = "update user set Role =? where UserName =?";
+	public static final String USER_UPDATION = "update user set UserEmail =? and Role =? where UserName =?";
+	public static final String TR_CREATION = "insert into trdocument (CreationDate,ModifyDate,StateID,Description,ReviewerCount,CurrentCount) values (?,?,?,?,?,?)";
+	public static final String TR_ID = "select TrID from trdocument where Description = ?";
+	public static final String TR_DETAILS= "select t.TrID,t.CreationDate,t.ModifyDate,t.Description,t.ReviewerCount,t.CurrentCount,s.StateName from trdocument t,state s where t.StateID = s.StateID and t.TrID=?";
 	public static final String DOC_AUTH_UPDATE = "insert into doc_auth (TrID,UserID) values (?,?)";
 	
-	public static final String TrDocDeletion = "delete from trdocument where TrID =?";
-	public static final String TrDocAuthDeletion = "delete from doc_auth where TrID =?";
-	public static final String TrDocReviewDeletion = "delete from doc_review where TrID =?";
+	public static final String TR_DOC_DELETION = "delete from trdocument where TrID =?";
+	public static final String TR_DOC_AUTH_DELETION = "delete from doc_auth where TrID =?";
+	public static final String TR_DOC_REVIEW_DELETION = "delete from doc_review where TrID =?";
 	public static final String USER_DETAILS = "select * from user where UserName like ?";
 	public static final String REVIEWER_DETAILS = "select u.UserID,u.UserName,u.Role,u.UserEmail from doc_review d , user u where d.UserID = u.UserID";
 	public static final String REVIEWER_DETAILS_DOC = "select t.TrID,t.CreationDate,t.ModifyDate,t.Description,s.StateName from trdocument t,state s,doc_review d where t.StateID = s.StateID and d.TrID = t.TrID and d.UserID = ?";
@@ -64,9 +69,14 @@ public class WorkflowDaoImpl implements WorkflowDao {
 	public static final String DOC_STATE = "update trdocument set StateID = ? where trID = ?";
 	public static final String UPDATE_TR_DESCRIPTION = "update trdocument set Description = ? where TrID=?";
 	public static final String CHECK_DOC_AUTH = "select * from doc_auth where TrID = ? and UserID = ?";
+	public static final String UPDATE_TR_CURRENT_COUNT = "update trdocument set CurrentCount = ? where TrID=?";
+	public static final String UPDATE_TR_MODIFY_DATE = "update trdocument set ModifyDate = ? where TrID=?";
 	
 	
 	public static final String COMMENTS_DOC_REVIEW = "insert into notification_doc_review (DocRevID,Message,NotificationDate) values (?,?,?)";
+	private static final String ASSIGN_REVIEWER = "Insert into reviewer_task (TrID,UserID) values(?,?)";
+	
+	
 	
 	@Override
 	public ArrayList<String> getAllUsers() {
@@ -254,6 +264,10 @@ public class WorkflowDaoImpl implements WorkflowDao {
 		TrDocumentVo vo= null;
 		List<String> authList =null;
 		List<String> reviewerList =null;
+		
+		List<UserVo> authors =null;
+		List<UserVo> reviewers =null;
+		
 		List<Object> retListAdmin = null;
 		List<Object> retListNormal = null;
 		ObjectMapper mapper = new ObjectMapper();
@@ -263,34 +277,68 @@ public class WorkflowDaoImpl implements WorkflowDao {
 			pstmt1 = conn.createStatement();
 			pstmt2 = conn.createStatement();
 			
-			rs = pstmt.executeQuery(trDocList);
+			rs = pstmt.executeQuery(TR_DOC_LIST);
 			retListAdmin = new ArrayList<Object>();
 			retListNormal = new ArrayList<Object>();
-			reviewerList=new ArrayList<String>();;
+			
 			
 			while (rs.next()) {
 				vo = new TrDocumentVo();
 				authList = new ArrayList<String>();
+				reviewerList=new ArrayList<String>();
+				
+				authors = new ArrayList<UserVo>();
+				reviewers=new ArrayList<UserVo>();
+				
 				vo.setDocumentId(rs.getInt("TrID"));
 				
-				rs1 =  pstmt1.executeQuery("select u.UserName from user u , doc_auth d where d.trID="+rs.getInt("TrID")+" and d.UserID = u.UserID");
+				rs1 =  pstmt1.executeQuery("select u.UserName,u.UserID,u.UserEmail,u.Role from user u , doc_auth d where d.trID="+rs.getInt("TrID")+" and d.UserID = u.UserID");
+				UserVo userVo;
 				while (rs1.next()) 
 				{
+					
+					userVo = new UserVo();
+					userVo.setUserId(rs1.getInt("UserID"));
+					userVo.setUserName(rs1.getString("UserName"));
+					userVo.setEmail(rs1.getString("UserEmail"));
+					userVo.setRole(rs1.getString("Role"));
+					
 					authList.add(rs1.getString("UserName"));
+					//authors.add(mapper.writerWithDefaultPrettyPrinter().writeValueAsString(userVo));
+					authors.add(userVo);
 				}
 				vo.setAuthList(authList);
+				vo.setAuthors(authors);
 				
-				rs2 =  pstmt2.executeQuery("select u.UserName from user u , doc_review d where d.trID="+rs.getInt("TrID")+" and d.UserID = u.UserID");
+				
+				
+				
+				rs2 =  pstmt2.executeQuery("select u.UserName,u.UserID,u.UserEmail,u.Role from user u , doc_review d where d.trID="+rs.getInt("TrID")+" and d.UserID = u.UserID");
 				while (rs2.next()) 
 				{
+					userVo = new UserVo();
+					userVo.setUserId(rs2.getInt("UserID"));
+					userVo.setUserName(rs2.getString("UserName"));
+					userVo.setEmail(rs2.getString("UserEmail"));
+					userVo.setRole(rs2.getString("Role"));
+					
 					reviewerList.add(rs2.getString("UserName"));
+					//reviewers.add(mapper.writerWithDefaultPrettyPrinter().writeValueAsString(userVo));
+					reviewers.add(userVo);
+					
 				}
 				vo.setReviewerList(reviewerList);
+				vo.setReviewers(reviewers);
+				
 				
 				vo.setCreation(rs.getDate("CreationDate"));
 				vo.setModifyDate(rs.getDate("ModifyDate"));
 				vo.setDescription(rs.getString("Description"));
 				vo.setCurrentState(rs.getString("StateName"));
+				
+				vo.setReviewerCount(rs.getInt("ReviewerCount"));
+				vo.setCurrentCount(rs.getInt("CurrentCount"));
+				
 				if(role.equalsIgnoreCase(Constants.ADMIN))
 				retListAdmin.add(mapper.writerWithDefaultPrettyPrinter().writeValueAsString(vo));
 				else
@@ -356,7 +404,7 @@ public class WorkflowDaoImpl implements WorkflowDao {
 
 		try {
 			conn = ConnectionPool.getConnection();
-			pstmt = conn.prepareStatement(trCreation);
+			pstmt = conn.prepareStatement(TR_CREATION);
 			Date dNow = new Date( );
 		      SimpleDateFormat ft = 
 		      new SimpleDateFormat ("yyyy/M/dd");
@@ -426,7 +474,7 @@ public class WorkflowDaoImpl implements WorkflowDao {
 
 		try {
 			conn = ConnectionPool.getConnection();
-			pstmt = conn.prepareStatement(trId);
+			pstmt = conn.prepareStatement(TR_ID);
 			pstmt.setString(1, fileName);
 			rs = pstmt.executeQuery();
 			
@@ -471,7 +519,7 @@ public class WorkflowDaoImpl implements WorkflowDao {
 
 		try {
 			conn = ConnectionPool.getConnection();
-			pstmt = conn.prepareStatement(userCreation);
+			pstmt = conn.prepareStatement(USER_CREATION);
 			pstmt.setString(1, userName);
 			pstmt.setString(2, email);
 			pstmt.setString(3, password);
@@ -510,7 +558,7 @@ public class WorkflowDaoImpl implements WorkflowDao {
 
 		try {
 			conn = ConnectionPool.getConnection();
-			pstmt = conn.prepareStatement(userDeletion);
+			pstmt = conn.prepareStatement(USER_DELETION);
 			pstmt.setString(1, userName);
 			
 			retVal = pstmt.executeUpdate();
@@ -551,7 +599,7 @@ public class WorkflowDaoImpl implements WorkflowDao {
 			
 			if(email!=null && role!=null)
 			{
-			pstmt = conn.prepareStatement(userUpdation);
+			pstmt = conn.prepareStatement(USER_UPDATION);
 			pstmt.setString(1, email);
 			pstmt.setString(2, role);
 			pstmt.setString(3, userName);
@@ -559,7 +607,7 @@ public class WorkflowDaoImpl implements WorkflowDao {
 			
 			else if(email!=null)
 			{
-			pstmt = conn.prepareStatement(userEmailUpdation);
+			pstmt = conn.prepareStatement(USER_EMAIL_UPDATION);
 			pstmt.setString(1, email);
 			
 			pstmt.setString(2, userName);
@@ -567,7 +615,7 @@ public class WorkflowDaoImpl implements WorkflowDao {
 			
 			else
 			{
-				pstmt = conn.prepareStatement(userRoleUpdation);
+				pstmt = conn.prepareStatement(USER_ROLE_UPDATION);
 				pstmt.setString(1, role);
 				
 				pstmt.setString(2, userName);
@@ -613,10 +661,13 @@ public class WorkflowDaoImpl implements WorkflowDao {
 		ResultSet rs2 = null;
 		
 		TrDocumentVo vo= null;
+		List<UserVo> authors =null;
+		List<UserVo> reviewers =null;
+		
 		List<String> authList =null;
 		List<String> reviewerList =null;
-		List<String> retList = null;
-		ObjectMapper mapper = new ObjectMapper();
+		//ObjectMapper mapper = new ObjectMapper();
+		
 		try {
 			conn = ConnectionPool.getConnection();
 			
@@ -626,36 +677,88 @@ public class WorkflowDaoImpl implements WorkflowDao {
 			pstmt = conn.prepareStatement(TR_DETAILS);
 			pstmt.setString(1, trId);
 			rs = pstmt.executeQuery();
-			retList = new ArrayList<String>();
+		
 			
 			while (rs.next()) {
 				vo = new TrDocumentVo();
 				authList = new ArrayList<String>();
 				reviewerList = new ArrayList<String>();
 				
+				authors = new ArrayList<UserVo>();
+				reviewers = new ArrayList<UserVo>();
+				
 				vo.setDocumentId(rs.getInt("TrID"));
 				
-				rs1 =  pstmt1.executeQuery("select u.UserName from user u , doc_auth d where d.trID="+rs.getInt("TrID")+" and d.UserID = u.UserID");
+				rs1 =  pstmt1.executeQuery("select u.UserName,u.UserID,u.UserEmail,u.Role from user u , doc_auth d where d.trID="+rs.getInt("TrID")+" and d.UserID = u.UserID");
+				UserVo userVo;
 				while (rs1.next()) 
 				{
+					userVo = new UserVo();
+					userVo.setUserId(rs1.getInt("UserID"));
+					userVo.setUserName(rs1.getString("UserName"));
+					userVo.setEmail(rs1.getString("UserEmail"));
+					userVo.setRole(rs1.getString("Role"));
+					
 					authList.add(rs1.getString("UserName"));
+					authors.add(userVo);
+					/*try {
+						authors.add(mapper.writerWithDefaultPrettyPrinter().writeValueAsString(userVo));
+					} catch (JsonGenerationException e) {
+						// TODO Auto-generated catch block
+						e.printStackTrace();
+					} catch (JsonMappingException e) {
+						// TODO Auto-generated catch block
+						e.printStackTrace();
+					} catch (IOException e) {
+						// TODO Auto-generated catch block
+						e.printStackTrace();
+					}*/
 				}
 				vo.setAuthList(authList);
+				vo.setAuthors(authors);
 				
-				rs2 =  pstmt2.executeQuery("select u.UserName from user u , doc_review d where d.trID="+rs.getInt("TrID")+" and d.UserID = u.UserID");
+				rs2 =  pstmt2.executeQuery("select u.UserName,u.UserID,u.UserEmail,u.Role from user u , doc_review d where d.trID="+rs.getInt("TrID")+" and d.UserID = u.UserID");
 				while (rs2.next()) 
 				{
+					userVo = new UserVo();
+					userVo.setUserId(rs2.getInt("UserID"));
+					userVo.setUserName(rs2.getString("UserName"));
+					userVo.setEmail(rs2.getString("UserEmail"));
+					userVo.setRole(rs2.getString("Role"));
+					
+					
 					reviewerList.add(rs2.getString("UserName"));
+					
+					reviewers.add(userVo);
+					
+					
+				/*	try {
+						reviewers.add(mapper.writerWithDefaultPrettyPrinter().writeValueAsString(userVo));
+					} catch (JsonGenerationException e) {
+						// TODO Auto-generated catch block
+						e.printStackTrace();
+					} catch (JsonMappingException e) {
+						// TODO Auto-generated catch block
+						e.printStackTrace();
+					} catch (IOException e) {
+						// TODO Auto-generated catch block
+						e.printStackTrace();
+					}*/
 				}
 			
 				vo.setReviewerList(reviewerList);
+				vo.setReviewers(reviewers);
 				
 				vo.setCreation(rs.getDate("CreationDate"));
 				vo.setModifyDate(rs.getDate("ModifyDate"));
-				
-				vo.setDescription(rs.getString("Description").split("\\.")[1]);
+				if(rs.getString("Description")!= null && rs.getString("Description")!="")
+				{
+					if(rs.getString("Description").split("\\.").length==2)
+					vo.setDescription(rs.getString("Description").split("\\.")[1]);
+				}
 				vo.setCurrentState(rs.getString("StateName"));
-				
+				vo.setReviewerCount(rs.getInt("ReviewerCount"));
+				vo.setCurrentCount(rs.getInt("CurrentCount"));
 				
 			}
 
@@ -782,7 +885,7 @@ public class WorkflowDaoImpl implements WorkflowDao {
 			if(temp!=0)
 			{
 			conn = ConnectionPool.getConnection();
-			pstmt = conn.prepareStatement(TrDocDeletion);
+			pstmt = conn.prepareStatement(TR_DOC_DELETION);
 			pstmt.setString(1, trId);
 			
 			
@@ -822,7 +925,7 @@ public class WorkflowDaoImpl implements WorkflowDao {
 
 		try {
 			conn = ConnectionPool.getConnection();
-			pstmt = conn.prepareStatement(TrDocAuthDeletion);
+			pstmt = conn.prepareStatement(TR_DOC_AUTH_DELETION);
 			pstmt.setString(1, trId);
 			
 			retVal = pstmt.executeUpdate();
@@ -859,7 +962,7 @@ public class WorkflowDaoImpl implements WorkflowDao {
 
 		try {
 			conn = ConnectionPool.getConnection();
-			pstmt = conn.prepareStatement(TrDocReviewDeletion);
+			pstmt = conn.prepareStatement(TR_DOC_REVIEW_DELETION);
 			pstmt.setString(1, trId);
 			
 			retVal = pstmt.executeUpdate();
@@ -1138,6 +1241,834 @@ public class WorkflowDaoImpl implements WorkflowDao {
 		}
 		return retVal;
 	}
+
+	@Override
+	public int updateTrCurrentCount(String updateDocId, int reviewerCount) {
+		Connection conn = null;
+		PreparedStatement pstmt = null;
+		int retVal=0;
+
+		try {
+			conn = ConnectionPool.getConnection();
+			
+			
+			pstmt = conn.prepareStatement(UPDATE_TR_CURRENT_COUNT);
+			pstmt.setInt(1, reviewerCount);
+			pstmt.setString(2, updateDocId);
+			
+			
+			retVal = pstmt.executeUpdate();
+		}
+		catch(SQLException e)
+		{
+			e.printStackTrace();
+		}
+		
+		finally
+		{
+			try {
+			
+				
+				if (pstmt != null)
+					pstmt.close();
+
+				if (conn != null)
+					conn.close();
+
+			} catch (SQLException e) {
+				// TODO Auto-generated catch block
+				e.printStackTrace();
+			}
+		}
+		return retVal;
+	}
+
+	@Override
+	public int updateTrModifyDate(String updateDocId, String date) {
+		Connection conn = null;
+		PreparedStatement pstmt = null;
+		int retVal=0;
+
+		try {
+			conn = ConnectionPool.getConnection();
+			
+			
+			pstmt = conn.prepareStatement(UPDATE_TR_MODIFY_DATE);
+			pstmt.setString(1, date);
+			pstmt.setString(2, updateDocId);
+			
+			
+			retVal = pstmt.executeUpdate();
+		}
+		catch(SQLException e)
+		{
+			e.printStackTrace();
+		}
+		
+		finally
+		{
+			try {
+			
+				
+				if (pstmt != null)
+					pstmt.close();
+
+				if (conn != null)
+					conn.close();
+
+			} catch (SQLException e) {
+				// TODO Auto-generated catch block
+				e.printStackTrace();
+			}
+		}
+		return retVal;
+	}
+	
+	/*
+	 * RISHABH'S DAOIMPL
+	 * 
+	 * */
+	
+	@Override
+	public JSONObject getComments(int UserId, String userRole, int TrID) {
+
+		Connection conn = null;
+		PreparedStatement pstmt = null;
+		ResultSet rs = null;
+		JSONObject result = null;
+		JSONObject mainObject = null;
+
+		try {
+			conn = ConnectionPool.getConnection();
+			pstmt = conn
+					.prepareStatement("select CommentID,UserID,CommentDesc,CommentDate from doc_review d "
+							+ "join comment c on d.DocRevID=c.DocRevID"
+							+ " where TrID=?");
+			pstmt.setInt(1, TrID);
+			rs = pstmt.executeQuery();
+			mainObject = new JSONObject();
+			while (rs.next()) {
+				result = new JSONObject();
+				result.put("CommentID", rs.getInt("CommentID"));
+				result.put("UserId", rs.getInt("UserID"));
+				result.put("Comment Desc", rs.getString("CommentDesc"));
+				result.put("Comment Date", rs.getDate("CommentDate"));
+				mainObject.accumulate("Comments", result);
+			}
+
+		} catch (SQLException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		} catch (JSONException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		} finally {
+
+			try {
+				if (rs != null)
+					rs.close();
+
+				if (pstmt != null)
+					pstmt.close();
+
+				if (conn != null)
+					conn.close();
+
+			} catch (SQLException e) {
+				// TODO Auto-generated catch block
+				e.printStackTrace();
+			}
+		}
+		return mainObject;
+	}
+	
+	@Override
+	public String postComment(int userId, String userRole,
+			JSONObject requestBody) {
+		
+		int TrID = 0;
+		String CommentDesc = null;
+		try {
+			TrID = requestBody.getInt("TrID");
+			CommentDesc = requestBody.getString("CommentDesc");
+		} catch (JSONException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
+
+		if (isReviewer(userId, TrID)) {
+
+			Connection conn = null;
+			PreparedStatement pstmt = null;
+			PreparedStatement preparedStatement = null;
+			PreparedStatement update = null;
+			PreparedStatement select = null;
+			PreparedStatement changeState = null, changeReviewerCommentState = null;
+			ResultSet rs = null;
+			ResultSet rs1 = null;
+			int DocRevID = 0;
+			int message = 0;
+			try {
+				conn = ConnectionPool.getConnection();
+				pstmt = conn
+						.prepareStatement("select DocRevID from doc_review where TrID=? and UserID=?");
+				pstmt.setInt(1, TrID);
+				pstmt.setInt(2, userId);
+				rs = pstmt.executeQuery();
+
+				while (rs.next()) {
+					DocRevID = rs.getInt(1);
+				}
+				preparedStatement = conn
+						.prepareStatement("Insert into comment (CommentDesc,CommentDate,DocRevID)"
+								+ "values(?,?,?)");
+				preparedStatement.setString(1, CommentDesc);
+				java.util.Date today = new java.util.Date();
+				preparedStatement.setTimestamp(2,
+						new java.sql.Timestamp(today.getTime()));
+				preparedStatement.setInt(3, DocRevID);
+				message = preparedStatement.executeUpdate();
+
+				/*
+				 * Change the state of document assigned to a reviewer to
+				 * Reviewed state after he posts comment
+				 */
+				changeReviewerCommentState = conn
+						.prepareStatement("Update doc_review set StateID=3 where DocRevID=?");
+				changeReviewerCommentState.setInt(1, DocRevID);
+				changeReviewerCommentState.executeUpdate();
+
+				/*
+				 * Message=1 mean 1 row inserted into the table comment In this
+				 * case need to decrement current count in trdocument table
+				 */
+
+				if (message == 1) {
+
+					update = conn
+							.prepareStatement("update trdocument set CurrentCount=CurrentCount-1 "
+									+ "where TrID=1 and CurrentCount>0;");
+					update.executeUpdate();
+
+					select = conn
+							.prepareStatement("Select CurrentCount from trdocument where TrID=?");
+					select.setInt(1, TrID);
+					rs1 = select.executeQuery();
+					int CurrentCount = 0;
+					while (rs1.next()) {
+						CurrentCount = rs1.getInt("CurrentCount");
+					}
+					if (CurrentCount == 0) {
+						/*
+						 * Change state of document
+						 */
+
+						changeState = conn
+								.prepareStatement("Update trdocument set StateID=3 where TrID=?");
+						changeState.setInt(1, TrID);
+						changeState.executeUpdate();
+					}
+
+				}
+
+			} catch (SQLException e) {
+				// TODO Auto-generated catch block
+				e.printStackTrace();
+			} finally {
+
+				try {
+					if (rs != null)
+						rs.close();
+
+					if (rs1 != null)
+						rs1.close();
+
+					if (pstmt != null)
+						pstmt.close();
+
+					if (preparedStatement != null)
+						preparedStatement.close();
+
+					if (changeReviewerCommentState != null)
+						changeReviewerCommentState.close();
+
+					if (update != null)
+						update.close();
+
+					if (select != null)
+						select.close();
+
+					if (changeState != null)
+						changeState.close();
+
+					if (conn != null)
+						conn.close();
+
+				} catch (SQLException e) {
+					// TODO Auto-generated catch block
+					e.printStackTrace();
+				}
+
+			}
+
+			return (message + " Comment Posted");
+		}
+
+		else {
+			return ("Comments can be posted only by Reviewer of TR Document");
+		}
+	}
+	
+	
+	private boolean isReviewer(int userId, int trID) {
+		
+
+		/*
+		 * Check if userId is one of the Reviewer of trId
+		 */
+
+		Connection conn = null;
+		PreparedStatement pstmt = null;
+		ResultSet rs = null;
+		int count = 0;
+
+		try {
+			conn = ConnectionPool.getConnection();
+			pstmt = conn
+					.prepareStatement("select count(*) from doc_review where TrID=? and UserID=?");
+			pstmt.setInt(1, trID);
+			pstmt.setInt(2, userId);
+			rs = pstmt.executeQuery();
+
+			while (rs.next()) {
+				count = rs.getInt(1);
+			}
+		} catch (SQLException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		} finally {
+
+			try {
+				if (rs != null)
+					rs.close();
+
+				if (pstmt != null)
+					pstmt.close();
+
+				if (conn != null)
+					conn.close();
+
+			} catch (SQLException e) {
+				// TODO Auto-generated catch block
+				e.printStackTrace();
+			}
+		}
+
+		if (count > 0) {
+			return (true);
+		}
+
+		return (false);
+
+	}
+
+	@Override
+	public String deleteComment(int userId, String role, int commentId) {
+		
+
+		Connection conn = null;
+		PreparedStatement pstmt = null;
+		PreparedStatement preparedStatement = null;
+		ResultSet rs = null;
+		int RevID = 0;
+		int message = 0;
+		try {
+			conn = ConnectionPool.getConnection();
+			pstmt = conn
+					.prepareStatement("select UserID from doc_review where DocRevID="
+							+ "(select DocRevID from comment where CommentID=?)");
+			pstmt.setInt(1, commentId);
+			rs = pstmt.executeQuery();
+
+			while (rs.next()) {
+				RevID = rs.getInt(1);
+			}
+
+			if (RevID == 0) {
+				return ("Comment does not exist");
+			}
+
+			if (RevID != userId && role.equalsIgnoreCase("Normal")) {
+				return ("Cannot delete comment for other reviewer");
+			}
+
+			preparedStatement = conn
+					.prepareStatement("Delete from comment where CommentID=?");
+			preparedStatement.setInt(1, commentId);
+			message = preparedStatement.executeUpdate();
+
+		} catch (SQLException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		} finally {
+
+			try {
+				if (rs != null)
+					rs.close();
+
+				if (pstmt != null)
+					pstmt.close();
+
+				if (preparedStatement != null)
+					preparedStatement.close();
+
+				if (conn != null)
+					conn.close();
+
+			} catch (SQLException e) {
+				// TODO Auto-generated catch block
+				e.printStackTrace();
+			}
+		}
+
+		return (message + " Comment Deleted");
+	}
+
+	
+	private boolean checkifAuthor(int trId, int userId, int userId2) {
+		/*
+		 * Check if userId1 is one of the author of trId userId2 is admin's Id
+		 */
+		// TODO Auto-generated method stub
+		Connection conn = null;
+		PreparedStatement pstmt = null;
+		ResultSet rs = null;
+		int count = 0;
+
+		try {
+			conn = ConnectionPool.getConnection();
+			pstmt = conn
+					.prepareStatement("select count(*) from doc_auth where TrID=? and UserID=?");
+			pstmt.setInt(1, trId);
+			pstmt.setInt(2, userId);
+			rs = pstmt.executeQuery();
+
+			while (rs.next()) {
+				count = rs.getInt(1);
+			}
+		} catch (SQLException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		} finally {
+
+			try {
+				if (rs != null)
+					rs.close();
+
+				if (pstmt != null)
+					pstmt.close();
+
+				if (conn != null)
+					conn.close();
+
+			} catch (SQLException e) {
+				// TODO Auto-generated catch block
+				e.printStackTrace();
+			}
+		}
+		if (count > 0) {
+			return (true);
+		}
+
+		return (false);
+	}
+
+	@Override
+	public String addReviewer(int trId, int userId, int userId2) {
+		
+		if (checkifAuthor(trId, userId, userId2)) {
+			return ("Cannot assign one of the Authors as Reviewer");
+		}
+	
+		Connection conn = null;
+		PreparedStatement pstmt = null;
+		int rs = 0;
+
+		try {
+			conn = ConnectionPool.getConnection();
+			pstmt = conn.prepareStatement(ASSIGN_REVIEWER);
+			pstmt.setInt(1, trId);
+			pstmt.setInt(2, userId);
+			rs = pstmt.executeUpdate();
+
+		} catch (SQLException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+
+			/*
+			 * If same TR is being assigned to same UserID more than once It
+			 * would result in a Unique Constraint violation in reviewer_task
+			 * table
+			 */
+
+			return ("Work already allocated to the Reviewer");
+		} finally {
+
+			try {
+				if (pstmt != null)
+					pstmt.close();
+
+				if (conn != null)
+					conn.close();
+
+			} catch (SQLException e) {
+				// TODO Auto-generated catch block
+				e.printStackTrace();
+			}
+		}
+
+		return "Reviewer Assignment Successfull";
+	}
+
+	@Override
+	public String getReviewers(int trId) {
+		
+		Connection conn = null;
+		PreparedStatement pstmt = null;
+		ResultSet rs = null;
+		JSONObject result = new JSONObject();
+
+		try {
+			conn = ConnectionPool.getConnection();
+			pstmt = conn
+					.prepareStatement("Select UserName from doc_review d,User u where TrID=? and d.UserID=u.UserID");
+			pstmt.setInt(1, trId);
+			rs = pstmt.executeQuery();
+			while (rs.next()) {
+				try {
+					result.accumulate("Reviewer Name", rs.getString("UserName"));
+				} catch (JSONException e) {
+					// TODO Auto-generated catch block
+					e.printStackTrace();
+				}
+			}
+		} catch (SQLException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		} finally {
+
+			try {
+				if (pstmt != null)
+					pstmt.close();
+
+				if (conn != null)
+					conn.close();
+
+			} catch (SQLException e) {
+				// TODO Auto-generated catch block
+				e.printStackTrace();
+			}
+		}
+
+		return result.toString();
+	}
+
+	@Override
+	public String deleteReviewer(int TrID, int RevID) {
+		
+		Connection conn = null;
+		PreparedStatement pstmt = null;
+		int result = 0;
+
+		try {
+			conn = ConnectionPool.getConnection();
+			pstmt = conn
+					.prepareStatement("Delete from doc_review where TrID=? and UserID=?");
+			pstmt.setInt(1, TrID);
+			pstmt.setInt(2, RevID);
+			result = pstmt.executeUpdate();
+		} catch (SQLException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		} finally {
+
+			try {
+				if (pstmt != null)
+					pstmt.close();
+
+				if (conn != null)
+					conn.close();
+
+			} catch (SQLException e) {
+				// TODO Auto-generated catch block
+				e.printStackTrace();
+			}
+		}
+		if (result == 0)
+			return "ERROR:Could not remove Reviewer";
+		else if (result > 0)
+			return "Reviewer removed Successfully";
+		return null;
+	}
+
+	@Override
+	public String acceptTask(int userId, int trId) {
+		
+		Connection conn = null;
+		PreparedStatement pstmt = null;
+		PreparedStatement pstmt1 = null;
+		//PreparedStatement pstmt2 = null;
+		//PreparedStatement pstmt3 = null;
+		PreparedStatement pstmt4 = null;
+		int rs;
+		int rs1;
+		int rs4;
+		if(ishisTask(userId,trId))
+		{
+
+		try {
+			conn = ConnectionPool.getConnection();
+			
+			pstmt = conn
+					.prepareStatement("update trdocument set ReviewerCount=ReviewerCount+1, "
+							+ "CurrentCount=CurrentCount+1 where trId=?");
+			pstmt.setInt(1, trId);
+			rs = pstmt.executeUpdate();
+
+			pstmt1 = conn
+					.prepareStatement("Insert into doc_review (StateID,UserID,TrID) values(2,?,?)");
+			pstmt1.setInt(1, userId);
+			pstmt1.setInt(2, trId);
+			rs1 = pstmt1.executeUpdate();
+
+			/*
+			 * pstmt3=conn.prepareStatement(
+			 * "select RevTaskID from doc_review where ");
+			 * pstmt3.setInt(1,userId); pstmt3.setInt(2, trId);
+			 * rs1=pstmt3.executeUpdate();
+			 * 
+			 * pstmt2=conn.prepareStatement(
+			 * "Insert into notification_review_task StateID,UserID,TrID values(2,?,?)"
+			 * ); pstmt2.setInt(1,userId); pstmt2.setInt(2, trId);
+			 * rs1=pstmt1.executeUpdate();
+			 */
+
+			pstmt4 = conn.prepareStatement("Delete from reviewer_task where TrID=? and UserID=?");
+			pstmt4.setInt(1, trId);
+			pstmt4.setInt(2, userId);
+			rs4 = pstmt4.executeUpdate();
+			
+		} catch (SQLException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+			return("Already assigned task");
+		} finally {
+
+			try {
+				if (pstmt != null)
+					pstmt.close();
+
+				if (conn != null)
+					conn.close();
+
+				if (pstmt1 != null)
+					pstmt1.close();
+				
+				if (pstmt4 != null)
+					pstmt1.close();
+				
+			} catch (SQLException e) {
+				// TODO Auto-generated catch block
+				e.printStackTrace();
+			}
+		}
+
+		return "Task Accepted";
+		}
+		
+		else
+			return "The specified trdocument not assigned to you"; 
+	}
+
+	private boolean ishisTask(int userId, int trId) {
+		// TODO Auto-generated method stub
+		
+		Connection conn = null;
+		PreparedStatement pstmt = null;
+		ResultSet rs = null;
+
+		try {
+			conn = ConnectionPool.getConnection();
+			pstmt = conn
+					.prepareStatement("select count(*) from reviewer_task where UserID=? and TrID=?");
+			pstmt.setInt(1, userId);
+			pstmt.setInt(2, trId);
+			rs = pstmt.executeQuery();
+			while (rs.next()) {
+				int count=rs.getInt(1);
+				if(count==0)
+					return false;
+				else
+					return true;
+			}
+		} catch (SQLException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		} finally {
+
+			try {
+				if (pstmt != null)
+					pstmt.close();
+
+				if (conn != null)
+					conn.close();
+
+				if (rs != null)
+					rs.close();
+
+			} catch (SQLException e) {
+				// TODO Auto-generated catch block
+				e.printStackTrace();
+			}
+		}
+
+
+		return false;
+	}
+
+	@Override
+	public String showTasks(int userId) {
+		
+		Connection conn = null;
+		PreparedStatement pstmt = null;
+		PreparedStatement pstmt1 = null;
+		ResultSet rs = null;
+		ResultSet rs1 = null;
+		JSONObject result = new JSONObject();
+
+		try {
+			conn = ConnectionPool.getConnection();
+			pstmt = conn
+					.prepareStatement("select t.TrID,Description from doc_review d join trdocument t"
+							+ " on(t.TrID=d.TrID) where UserID=? and d.StateID=2");
+			pstmt.setInt(1, userId);
+			rs = pstmt.executeQuery();
+			while (rs.next()) {
+				try {
+					JSONObject results = new JSONObject();
+					results.put("TrID", rs.getInt("t.TrID"));
+					results.put("Description", rs.getString("Description"));
+					results.put("Status", "Review Pending");
+					result.accumulate("Tasks", results);
+				} catch (JSONException e) {
+					// TODO Auto-generated catch block
+					e.printStackTrace();
+				}
+
+			}
+
+			pstmt1 = conn
+					.prepareStatement("select t.TrID,Description from reviewer_task r join trdocument t"
+							+ " on(t.TrID=r.TrID) where UserID=?");
+			pstmt1.setInt(1, userId);
+			rs1 = pstmt1.executeQuery();
+			while (rs1.next()) {
+				try {
+					JSONObject results = new JSONObject();
+					results.put("TrID", rs1.getInt("t.TrID"));
+					results.put("Description", rs1.getString("Description"));
+					results.put("Status", "Acceptance Pending");
+					result.accumulate("Tasks", results);
+				} catch (JSONException e) {
+					// TODO Auto-generated catch block
+					e.printStackTrace();
+				}
+			}
+
+		} catch (SQLException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		} finally {
+
+			try {
+				if (pstmt != null)
+					pstmt.close();
+
+				if (conn != null)
+					conn.close();
+
+				if (pstmt1 != null)
+					pstmt1.close();
+
+				if (rs != null)
+					rs.close();
+
+				if (rs1 != null)
+					rs1.close();
+
+			} catch (SQLException e) {
+				// TODO Auto-generated catch block
+				e.printStackTrace();
+			}
+		}
+
+		return result.toString();
+	}
+	
+	@Override
+	public String rejectTask(int userId, int trId) {
+		
+		Connection conn = null;
+		PreparedStatement pstmt = null;
+	/*	PreparedStatement pstmt1 = null;
+		PreparedStatement pstmt2 = null;
+		PreparedStatement pstmt3 = null;*/
+		PreparedStatement pstmt4 = null;
+		int rs;
+		int rs1;
+		int rs4;
+
+		try {
+			conn = ConnectionPool.getConnection();
+			
+			/*
+			 * pstmt3=conn.prepareStatement(
+			 * "select RevTaskID from doc_review where ");
+			 * pstmt3.setInt(1,userId); pstmt3.setInt(2, trId);
+			 * rs1=pstmt3.executeUpdate();
+			 * 
+			 * pstmt2=conn.prepareStatement(
+			 * "Insert into notification_review_task StateID,UserID,TrID values(2,?,?)"
+			 * ); pstmt2.setInt(1,userId); pstmt2.setInt(2, trId);
+			 * rs1=pstmt1.executeUpdate();
+			 */
+
+			pstmt4 = conn.prepareStatement("Delete from reviewer_task where TrID=? and UserID=?");
+			pstmt4.setInt(1, trId);
+			pstmt4.setInt(2, userId);
+			rs4 = pstmt4.executeUpdate();
+		} catch (SQLException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		} finally {
+
+			try {
+				if (pstmt != null)
+					pstmt.close();
+
+				if (conn != null)
+					conn.close();
+				
+			} catch (SQLException e) {
+				// TODO Auto-generated catch block
+				e.printStackTrace();
+			}
+		}
+
+		return "Task Rejected";
+
+	}
+
 
 	
 

@@ -1,9 +1,0 @@
-package com.iiitb.tr.workflow.dao;
-
-import java.util.ArrayList;
-
-public interface WorkflowDao {
-
-	public ArrayList<UserVo> getAllUsers();
-	
-}

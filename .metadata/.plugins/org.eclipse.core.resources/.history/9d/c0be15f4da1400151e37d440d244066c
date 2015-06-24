@@ -1,0 +1,87 @@
+package com.iiitb.tr.workflow;
+
+import javax.ws.rs.DELETE;
+import javax.ws.rs.GET;
+import javax.ws.rs.POST;
+import javax.ws.rs.Path;
+import javax.ws.rs.PathParam;
+import javax.ws.rs.Produces;
+import javax.ws.rs.core.MediaType;
+
+import com.iiitb.tr.workflow.dao.UserVo;
+import com.iiitb.tr.workflow.dao.WorkflowDao;
+import com.iiitb.tr.workflow.dao.WorkflowDaoImpl;
+
+
+@Path("/Admin")
+public class Adminwork {
+
+	@POST
+	@Path("{auth}/{UserID}/{TrID}")
+	@Produces(MediaType.TEXT_PLAIN)
+	
+	/***********************************************************
+	 *  This would add Reviewer specifed by UserID to a TR document specified by TrID
+	 * @return Success message
+	 */
+	public String addReviewer(@PathParam("auth") String authToken,@PathParam("UserID") int UserId,
+			@PathParam("TrID") int TrId){
+		String message=null;
+		WorkflowDao dao=new WorkflowDaoImpl();
+		UserVo user=dao.authenticateUser(authToken);
+		
+		if(user.getRole().equalsIgnoreCase("Normal"))
+			return("Sorry!!! You are not authorized to view the requested URI");
+		else if(user.getRole().equalsIgnoreCase("Admin"))
+		{
+			message=dao.addReviewer(TrId,UserId,user.getUserId());
+			
+		}
+	    return (message);
+	}
+	
+	
+	@GET
+	@Path("{auth}/{TrID}")
+	@Produces(MediaType.TEXT_PLAIN)
+	
+	/***********************************************************
+	 *  This would get all Reviewers assigned to a TR document 
+	 * @return List of UserIDs
+	 */
+	public String getReviewer(@PathParam("auth") String authToken,@PathParam("TrID") int TrId){
+		String message = null;
+		WorkflowDao dao=new WorkflowDaoImpl();
+		UserVo user=dao.authenticateUser(authToken);
+	
+		message=dao.getReviewers(TrId);
+		
+		return message;
+	}
+	
+	
+	
+	@DELETE
+	@Path("{auth}/{TrID}/{RevID}")
+	@Produces(MediaType.TEXT_PLAIN)
+	
+	/***********************************************************
+	 *  This would get all Reviewers assigned to a TR document 
+	 * @return List of UserIDs
+	 */
+	public String deleteReviewer(@PathParam("auth") String authToken,@PathParam("TrID") int TrId,
+			@PathParam("RevID") int RevID){
+		String message = null;
+		WorkflowDao dao=new WorkflowDaoImpl();
+		UserVo user=dao.authenticateUser(authToken);
+		
+		
+		if(user.getRole().equalsIgnoreCase("Normal"))
+			message="Not Authorised to delete Reviewer";
+		if(user.getRole().equalsIgnoreCase("Admin"))
+			message=dao.deleteReviewer(TrId,RevID);
+		
+		return message;
+	}
+
+}

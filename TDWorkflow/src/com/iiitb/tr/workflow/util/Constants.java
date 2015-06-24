@@ -14,5 +14,7 @@ public class Constants {
 	
 	public static String RCP = "Reviewer/Reviewers Comments Pending";
     public static String ARP = "Author Response Pending";
+    
+    public static String INVALIDUSER="Sorry !!! You are not authorized to view the requested URI";
 
 }

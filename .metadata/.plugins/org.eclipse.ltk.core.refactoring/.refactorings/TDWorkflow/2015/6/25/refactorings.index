@@ -10,3 +10,16 @@
 1434308876140	Rename resource 'Copy of form.html'
 1434308975847	Delete element
 1434308978866	Delete element
+1434466877142	Rename field 'trDocList'
+1434466897470	Rename field 'userCreation'
+1434466915770	Rename field 'TrDocDeletion'
+1434466929476	Rename field 'TrDocAuthDeletion'
+1434466949058	Rename field 'TrDocReviewDeletion'
+1434466963178	Rename field 'trId'
+1434466973561	Rename field 'trCreation'
+1434466987437	Rename field 'userUpdation'
+1434466999567	Rename field 'userDeletion'
+1434467047010	Rename field 'userEmailUpdation'
+1434467064394	Rename field 'userRoleUpdation'
+1434536002497	Rename field 'assignReviewer'
+1434536483292	Delete element
