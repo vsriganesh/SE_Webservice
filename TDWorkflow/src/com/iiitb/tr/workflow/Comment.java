@@ -28,8 +28,8 @@ public class Comment {
 		UserVo user=dao.authenticateUser(authToken);
 		if(user!=null)
 		{
-		JSONObject response=dao.getComments(user.getUserId(),user.getRole(),TrId);
-		return(response.toString());
+		String response=dao.getComments(user.getUserId(),user.getRole(),TrId);
+		return(response);
 		}
 		else
 			return Constants.INVALIDUSER;
@@ -37,24 +37,60 @@ public class Comment {
 	}
 	
 	
+	/**********
+	 * 
+	 * @param authToken
+	 * @param commentId
+	 * @return
+	 */
+	
+	
 	@POST
-	@Path("{auth}")
+	@Path("accept/{auth}")
 	@Produces(MediaType.TEXT_PLAIN)
 	@Consumes(MediaType.APPLICATION_JSON)
-	public String postComment(@PathParam("auth") String authToken,JSONObject requestBody){
+	public String postAcceptComment(@PathParam("auth") String authToken,JSONObject requestBody){
 		WorkflowDaoImpl dao=new WorkflowDaoImpl();
 		UserVo user=dao.authenticateUser(authToken);
-		
 		String message=null;
 		if(user!=null)
 		{
-		if(user.getRole().equalsIgnoreCase("Normal"))
-			message = dao.postComment(user.getUserId(),user.getRole(),requestBody);
+		message = dao.postComment(user.getUserId(),user.getRole(),requestBody,"accept");
 		return(message);
 		}
 		else
 			return Constants.INVALIDUSER;
 	}
+	
+	@POST
+	@Path("reject/{auth}")
+	@Produces(MediaType.TEXT_PLAIN)
+	@Consumes(MediaType.APPLICATION_JSON)
+	public String postRejectComment(@PathParam("auth") String authToken,JSONObject requestBody){
+		WorkflowDaoImpl dao=new WorkflowDaoImpl();
+		UserVo user=dao.authenticateUser(authToken);
+		String message=null;
+		if(user!=null)
+		{
+		message = dao.postComment(user.getUserId(),user.getRole(),requestBody,"reject");
+		return(message);
+		}
+		else
+			return Constants.INVALIDUSER;
+	}
+	/**********
+	 * 
+	 * @param authToken
+	 * @param commentId
+	 * @return
+	 */
+	
+	
+	
+	
+	
+	
+	
 	
 	@DELETE
 	@Path("{auth}/{commentid}")

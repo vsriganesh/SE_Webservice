@@ -16,6 +16,14 @@ public class UserVo implements Serializable {
 	private String role;
 	
 	
+	public UserVo() {
+		
+	}
+	
+	public UserVo(int userId) {
+		this.userId = userId;
+	}
+	
 	
 	
 	public String getRole() {
@@ -42,6 +50,17 @@ public class UserVo implements Serializable {
 	public void setEmail(String email) {
 		this.email = email;
 	}
+	
+	
+	@Override
+	public boolean equals(Object o)
+	{
+		if(((UserVo)o).getUserId() == this.userId)
+			return true;
+		else
+			return false;
+	}
+	
 	
 
 }

@@ -14,6 +14,7 @@ import javax.ws.rs.core.MediaType;
 
 import org.codehaus.jettison.json.JSONObject;
 
+import com.iiitb.tr.workflow.dao.TrDocumentVo;
 import com.iiitb.tr.workflow.dao.UserVo;
 import com.iiitb.tr.workflow.dao.WorkflowDao;
 import com.iiitb.tr.workflow.dao.WorkflowDaoImpl;
@@ -36,6 +37,9 @@ public class Adminwork {
 		String message=null;
 		WorkflowDao dao=new WorkflowDaoImpl();
 		UserVo user=dao.authenticateUser(authToken);
+		
+		
+		
 		if(user!=null)
 		{
 		
@@ -43,7 +47,24 @@ public class Adminwork {
 			return("Sorry!!! You are not authorized to view the requested URI");
 		else if(user.getRole().equalsIgnoreCase("Admin"))
 		{
-			message=dao.addReviewer(TrId,UserId,user.getUserId());
+			
+			TrDocumentVo trDocVo = dao.getTrDetails(String.valueOf(TrId));
+			
+			if(trDocVo!=null && !trDocVo.getAuthors().contains(new UserVo(UserId)) && !trDocVo.getReviewers().contains(new UserVo(UserId)) && (trDocVo.getCurrentState().equalsIgnoreCase(Constants.RAP)||trDocVo.getCurrentState().equalsIgnoreCase(Constants.RCP)))
+			{
+					message=dao.addReviewer(TrId,UserId);
+			}
+			else
+			{
+				if(trDocVo == null)
+					message = "Invalid Document ID";
+				else if(trDocVo.getAuthors().contains(new UserVo(UserId)))
+						message = "Author cannot be assigned as reviewer to the document";
+				else if(trDocVo.getReviewers().contains(new UserVo(UserId)))
+						message = "This user is already a reviewer for the current TR Document";
+				else
+					message = "Sorry!!! Current state of the document does not allow reviewer assignment to be performed";
+			}
 			
 		}
 	    return (message);

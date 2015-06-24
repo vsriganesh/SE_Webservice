@@ -37,10 +37,11 @@
 <fullyQualifiedTypeName name="javax.ws.rs.core.MediaType"/>
 <fullyQualifiedTypeName name="org.codehaus.jettison.json.JSONObject"/>
 <fullyQualifiedTypeName name="java.sql.PreparedStatement"/>
-<fullyQualifiedTypeName name="com.iiitb.tr.workflow.dao.TrDocumentVo"/>
 <fullyQualifiedTypeName name="java.sql.ResultSet"/>
 <fullyQualifiedTypeName name="javax.ws.rs.POST"/>
 <fullyQualifiedTypeName name="com.iiitb.tr.workflow.util.Constants"/>
 <fullyQualifiedTypeName name="java.util.Date"/>
 <fullyQualifiedTypeName name="java.text.SimpleDateFormat"/>
+<fullyQualifiedTypeName name="com.iiitb.tr.workflow.dao.TrDocumentVo"/>
+<fullyQualifiedTypeName name="java.lang.Override"/>
 </qualifiedTypeNameHistroy>

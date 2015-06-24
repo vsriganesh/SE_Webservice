@@ -376,7 +376,7 @@ public class Document {
 		if (vo != null) {
 		
 			TrDocumentVo ret = dao.getTrDetails(trId);
-			if(ret!=null && ((ret.getAuthList().contains(vo.getUserName())) && (!ret.getCurrentState().equalsIgnoreCase(Constants.PUBLISHED))))
+			if(ret!=null && ((ret.getAuthList().contains(vo.getUserName()) || vo.getRole().equalsIgnoreCase(Constants.ADMIN)) && (!ret.getCurrentState().equalsIgnoreCase(Constants.PUBLISHED))))
 			{
 					
 					if(dao.deleteTrDocument(trId)!=0)

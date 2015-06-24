@@ -54,15 +54,16 @@ public interface WorkflowDao {
 	
 	//RISHABHS DAO
 	
-	JSONObject getComments(int UserId, String userRole, int TrID);
-	String postComment(int userId, String userRole, JSONObject requestBody);
+    String getComments(int UserId, String userRole, int TrID);
 	String deleteComment(int userId, String role, int commentId);
-	String addReviewer(int trId, int userId, int userId2);
+	String addReviewer(int trId, int userId);
 	String getReviewers(int trId);
 	String deleteReviewer(int TrID, int RevID);
 	String acceptTask(int userId, int trId);
 	String showTasks(int userId);
 	String rejectTask(int userId, int trId);
+	String postComment(int userId, String userRole, JSONObject requestBody,String mode);
+	String publishTR(int trId);
 	
 	
 	

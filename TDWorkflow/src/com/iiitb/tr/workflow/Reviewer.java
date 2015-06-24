@@ -127,9 +127,13 @@ public class Reviewer {
 		String message = null;
 		WorkflowDao dao=new WorkflowDaoImpl();
 		UserVo user=dao.authenticateUser(authToken);
-		
-		message=dao.showTasks(user.getUserId());
-		return message;	
+		if(user!=null)
+		{
+			message=dao.showTasks(user.getUserId());
+			return message;	
+		}
+		else
+			return Constants.INVALIDUSER;
 	}
 
 	

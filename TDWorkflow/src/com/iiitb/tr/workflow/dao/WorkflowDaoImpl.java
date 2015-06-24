@@ -6,7 +6,6 @@ import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
-
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 
@@ -1330,36 +1329,104 @@ public class WorkflowDaoImpl implements WorkflowDao {
 	 * */
 	
 	@Override
-	public JSONObject getComments(int UserId, String userRole, int TrID) {
+	public String getComments(int UserId, String userRole, int TrID) {
 
 		Connection conn = null;
 		PreparedStatement pstmt = null;
 		ResultSet rs = null;
 		JSONObject result = null;
 		JSONObject mainObject = null;
+		if (isReviewer(UserId, TrID) || isAuthor(UserId, TrID)
+				|| userRole.equalsIgnoreCase("Admin")) {
+
+			try {
+				conn = ConnectionPool.getConnection();
+				// System.out.println(userRole);
+				if (!userRole.equalsIgnoreCase("Admin")) {
+					pstmt = conn
+							.prepareStatement("select CommentID,UserID,CommentDesc,CommentDate from doc_review d "
+									+ "join comment c on d.DocRevID=c.DocRevID"
+									+ " where TrID=?");
+					pstmt.setInt(1, TrID);
+					rs = pstmt.executeQuery();
+					mainObject = new JSONObject();
+					while (rs.next()) {
+						result = new JSONObject();
+						result.put("CommentID", rs.getInt("CommentID"));
+						result.put("UserId", rs.getInt("UserID"));
+						result.put("Comment Desc", rs.getString("CommentDesc"));
+						result.put("Comment Date", rs.getDate("CommentDate"));
+						mainObject.accumulate("Comments", result);
+					}
+				} else {
+					pstmt = conn
+							.prepareStatement("select CommentID,UserID,CommentDesc,CommentDate,TrID from doc_review d "
+									+ "join comment c on d.DocRevID=c.DocRevID");
+
+					// pstmt.setInt(1, TrID);
+					rs = pstmt.executeQuery();
+					mainObject = new JSONObject();
+					while (rs.next()) {
+						result = new JSONObject();
+						result.put("CommentID", rs.getInt("CommentID"));
+						result.put("UserId", rs.getInt("UserID"));
+						result.put("Comment Desc", rs.getString("CommentDesc"));
+						result.put("Comment Date", rs.getDate("CommentDate"));
+						result.put("TrID", rs.getInt("TrID"));
+						mainObject.accumulate("Comments", result);
+					}
+
+				}
+
+			} catch (SQLException e) {
+				// TODO Auto-generated catch block
+				e.printStackTrace();
+			} catch (JSONException e) {
+				// TODO Auto-generated catch block
+				e.printStackTrace();
+			} finally {
+
+				try {
+					if (rs != null)
+						rs.close();
+
+					if (pstmt != null)
+						pstmt.close();
+
+					if (conn != null)
+						conn.close();
+
+				} catch (SQLException e) {
+					// TODO Auto-generated catch block
+					e.printStackTrace();
+				}
+			}
+			return mainObject.toString();
+		} else {
+			return "Not Authorised";
+		}
+	}
+
+	
+	private boolean isAuthor(int userId, int trID) {
+
+		Connection conn = null;
+		PreparedStatement pstmt = null;
+		ResultSet rs = null;
+		int count = 0;
 
 		try {
 			conn = ConnectionPool.getConnection();
 			pstmt = conn
-					.prepareStatement("select CommentID,UserID,CommentDesc,CommentDate from doc_review d "
-							+ "join comment c on d.DocRevID=c.DocRevID"
-							+ " where TrID=?");
-			pstmt.setInt(1, TrID);
+					.prepareStatement("select count(*) from doc_auth where TrID=? and UserID=?");
+			pstmt.setInt(1, trID);
+			pstmt.setInt(2, userId);
 			rs = pstmt.executeQuery();
-			mainObject = new JSONObject();
-			while (rs.next()) {
-				result = new JSONObject();
-				result.put("CommentID", rs.getInt("CommentID"));
-				result.put("UserId", rs.getInt("UserID"));
-				result.put("Comment Desc", rs.getString("CommentDesc"));
-				result.put("Comment Date", rs.getDate("CommentDate"));
-				mainObject.accumulate("Comments", result);
-			}
 
+			while (rs.next()) {
+				count = rs.getInt(1);
+			}
 		} catch (SQLException e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
-		} catch (JSONException e) {
 			// TODO Auto-generated catch block
 			e.printStackTrace();
 		} finally {
@@ -1379,13 +1446,17 @@ public class WorkflowDaoImpl implements WorkflowDao {
 				e.printStackTrace();
 			}
 		}
-		return mainObject;
+
+		if (count > 0) {
+			return (true);
+		}
+
+		return (false);
 	}
-	
+
 	@Override
 	public String postComment(int userId, String userRole,
-			JSONObject requestBody) {
-		
+			JSONObject requestBody, String mode) {
 		int TrID = 0;
 		String CommentDesc = null;
 		try {
@@ -1403,70 +1474,171 @@ public class WorkflowDaoImpl implements WorkflowDao {
 			PreparedStatement preparedStatement = null;
 			PreparedStatement update = null;
 			PreparedStatement select = null;
-			PreparedStatement changeState = null, changeReviewerCommentState = null;
+			PreparedStatement changeState = null, changeReviewerCommentState = null,changeState1=null;
 			ResultSet rs = null;
 			ResultSet rs1 = null;
 			int DocRevID = 0;
 			int message = 0;
+			int state = 0;
 			try {
 				conn = ConnectionPool.getConnection();
 				pstmt = conn
-						.prepareStatement("select DocRevID from doc_review where TrID=? and UserID=?");
+						.prepareStatement(" select DocRevID,StateID from doc_review where TrID=? and UserID=?");
 				pstmt.setInt(1, TrID);
 				pstmt.setInt(2, userId);
 				rs = pstmt.executeQuery();
 
 				while (rs.next()) {
 					DocRevID = rs.getInt(1);
+					state = rs.getInt("StateID");
 				}
-				preparedStatement = conn
-						.prepareStatement("Insert into comment (CommentDesc,CommentDate,DocRevID)"
-								+ "values(?,?,?)");
-				preparedStatement.setString(1, CommentDesc);
-				java.util.Date today = new java.util.Date();
-				preparedStatement.setTimestamp(2,
-						new java.sql.Timestamp(today.getTime()));
-				preparedStatement.setInt(3, DocRevID);
-				message = preparedStatement.executeUpdate();
+				if (state != 2) {
+					return "Cannot Comment on the Document as its waiting for Author's response";
+				}
+				if(!isReviewer(userId,TrID))
+				{
+					return "Comments can be posted only by the Reviewers of TR";
+					
+				}
+				if (mode.equalsIgnoreCase("reject")) {
+					
+					/*
+					 * If reviewer gives negative comment
+					 * 1.Add the comment to the comment table
+					 * 2.Change the state in doc_review table for that TRID and USERID
+					 * 3.Decrease the Current Count in trdocument table by 1
+					 * 4.If Current Count has become 0.Change state of that TR to 3
+					 */
+					preparedStatement = conn
+							.prepareStatement("Insert into comment (CommentDesc,CommentDate,DocRevID)"
+									+" values(?,?,?)");
+					preparedStatement.setString(1, CommentDesc);
+					java.util.Date today = new java.util.Date();
+					preparedStatement.setTimestamp(2, new java.sql.Timestamp(
+							today.getTime()));
+					preparedStatement.setInt(3, DocRevID);
+					message = preparedStatement.executeUpdate();
 
-				/*
-				 * Change the state of document assigned to a reviewer to
-				 * Reviewed state after he posts comment
-				 */
-				changeReviewerCommentState = conn
-						.prepareStatement("Update doc_review set StateID=3 where DocRevID=?");
-				changeReviewerCommentState.setInt(1, DocRevID);
-				changeReviewerCommentState.executeUpdate();
+					/*
+					 * Change the state of document assigned to a reviewer to
+					 * Reviewed state after he posts comment
+					 */
+					changeReviewerCommentState = conn
+							.prepareStatement("Update doc_review set StateID=3 where DocRevID=?");
+					changeReviewerCommentState.setInt(1, DocRevID);
+					changeReviewerCommentState.executeUpdate();
 
-				/*
-				 * Message=1 mean 1 row inserted into the table comment In this
-				 * case need to decrement current count in trdocument table
-				 */
+					/*
+					 * Message=1 mean 1 row inserted into the table comment In
+					 * this case need to decrement current count in trdocument
+					 * table
+					 */
 
-				if (message == 1) {
+					if (message == 1) {
 
-					update = conn
-							.prepareStatement("update trdocument set CurrentCount=CurrentCount-1 "
-									+ "where TrID=1 and CurrentCount>0;");
-					update.executeUpdate();
+						update = conn
+								.prepareStatement("update trdocument set CurrentCount=CurrentCount-1 "
+										+ "where TrID=? and CurrentCount>0;");
+						update.setInt(1, TrID);
+						update.executeUpdate();
 
-					select = conn
-							.prepareStatement("Select CurrentCount from trdocument where TrID=?");
-					select.setInt(1, TrID);
-					rs1 = select.executeQuery();
-					int CurrentCount = 0;
-					while (rs1.next()) {
-						CurrentCount = rs1.getInt("CurrentCount");
+						select = conn
+								.prepareStatement("Select CurrentCount from trdocument where TrID=?");
+						select.setInt(1, TrID);
+						rs1 = select.executeQuery();
+						int CurrentCount = 0;
+						while (rs1.next()) {
+							CurrentCount = rs1.getInt("CurrentCount");
+						}
+						if (CurrentCount == 0) {
+							/*
+							 * Change state of document
+							 */
+
+							changeState = conn
+									.prepareStatement("Update trdocument set StateID=3 where TrID=?");
+							changeState.setInt(1, TrID);
+							changeState.executeUpdate();
+						}
+
 					}
-					if (CurrentCount == 0) {
-						/*
-						 * Change state of document
-						 */
+				}
+				else if(mode.equalsIgnoreCase("accept"))
+				{
+					
+					/*
+					 * If reviewer gives positive comment
+					 * 1.Add the comment to the comment table
+					 * 2.Delete the reviewer from doc_review table for that TRID and USERID
+					 * 3.Decrease the Current Count in trdocument table by 1
+					 * 4.Decrease the ReviewerCount by 1 as well
+					 * 5.If Current Count has become 0 but reviewerCount>0.Change state of that TR to 3
+					 * 6.If ReviewerCount is also 0.Change state of that TR to 4
+					 */
+					preparedStatement = conn
+							.prepareStatement("Insert into comment (CommentDesc,CommentDate,DocRevID)"
+									+ " values(?,?,?)");
+					preparedStatement.setString(1, CommentDesc);
+					java.util.Date today = new java.util.Date();
+					preparedStatement.setTimestamp(2, new java.sql.Timestamp(
+							today.getTime()));
+					preparedStatement.setInt(3, DocRevID);
+					message = preparedStatement.executeUpdate();
 
-						changeState = conn
-								.prepareStatement("Update trdocument set StateID=3 where TrID=?");
-						changeState.setInt(1, TrID);
-						changeState.executeUpdate();
+					/*
+					 * Delete the reviewer from doc_review table
+					 * 
+					 */
+					changeReviewerCommentState = conn
+							.prepareStatement("Update doc_review set StateID=4 where DocRevID=?");
+					changeReviewerCommentState.setInt(1, DocRevID);
+					changeReviewerCommentState.executeUpdate();
+
+					/*
+					 * Message=1 mean 1 row inserted into the table comment In
+					 * this case need to decrement current count in trdocument
+					 * table
+					 */
+
+					if (message == 1) {
+
+						update = conn
+								.prepareStatement("update trdocument set CurrentCount=CurrentCount-1,ReviewerCount=ReviewerCount-1 "
+										+ "where TrID=? and CurrentCount>0;");
+						update.setInt(1, TrID);
+						update.executeUpdate();
+
+						select = conn
+								.prepareStatement("Select CurrentCount,ReviewerCount from trdocument where TrID=?");
+						select.setInt(1, TrID);
+						rs1 = select.executeQuery();
+						int CurrentCount = 0;
+						int ReviewerCount=0;
+						while (rs1.next()) {
+							CurrentCount = rs1.getInt("CurrentCount");
+							ReviewerCount=rs1.getInt("ReviewerCount");
+						}
+						if (CurrentCount == 0 && ReviewerCount!=0) {
+							/*
+							 * Change state of document to Author Response Pending
+							 */
+
+							changeState = conn
+									.prepareStatement("Update trdocument set StateID=3 where TrID=?");
+							changeState.setInt(1, TrID);
+							changeState.executeUpdate();
+						}
+						if (CurrentCount == 0 && ReviewerCount==0) {
+							/*
+							 * Change state of document to Ready for publication
+							 */
+
+							changeState1 = conn
+									.prepareStatement("Update trdocument set StateID=4 where TrID=?");
+							changeState1.setInt(1, TrID);
+							changeState1.executeUpdate();
+						}
+
 					}
 
 				}
@@ -1500,12 +1672,14 @@ public class WorkflowDaoImpl implements WorkflowDao {
 
 					if (changeState != null)
 						changeState.close();
+					
+					if (changeState1 != null)
+						changeState1.close();
 
 					if (conn != null)
 						conn.close();
 
 				} catch (SQLException e) {
-					// TODO Auto-generated catch block
 					e.printStackTrace();
 				}
 
@@ -1518,10 +1692,8 @@ public class WorkflowDaoImpl implements WorkflowDao {
 			return ("Comments can be posted only by Reviewer of TR Document");
 		}
 	}
-	
-	
+
 	private boolean isReviewer(int userId, int trID) {
-		
 
 		/*
 		 * Check if userId is one of the Reviewer of trId
@@ -1571,10 +1743,12 @@ public class WorkflowDaoImpl implements WorkflowDao {
 		return (false);
 
 	}
+	
+	
 
 	@Override
 	public String deleteComment(int userId, String role, int commentId) {
-		
+		// TODO Auto-generated method stub
 
 		Connection conn = null;
 		PreparedStatement pstmt = null;
@@ -1634,7 +1808,6 @@ public class WorkflowDaoImpl implements WorkflowDao {
 		return (message + " Comment Deleted");
 	}
 
-	
 	private boolean checkifAuthor(int trId, int userId, int userId2) {
 		/*
 		 * Check if userId1 is one of the author of trId userId2 is admin's Id
@@ -1683,13 +1856,18 @@ public class WorkflowDaoImpl implements WorkflowDao {
 		return (false);
 	}
 
-	@Override
-	public String addReviewer(int trId, int userId, int userId2) {
-		
-		if (checkifAuthor(trId, userId, userId2)) {
-			return ("Cannot assign one of the Authors as Reviewer");
-		}
 	
+	@Override
+	public String addReviewer(int trId, int userId) {
+		// TODO Auto-generated method stub
+		
+
+		if (isAlreadyAssigned(trId, userId)) {
+			return ("Work already assigned to reviewer");
+		}
+
+	
+
 		Connection conn = null;
 		PreparedStatement pstmt = null;
 		int rs = 0;
@@ -1711,7 +1889,7 @@ public class WorkflowDaoImpl implements WorkflowDao {
 			 * table
 			 */
 
-			return ("Work already allocated to the Reviewer");
+			return ("Invalid Reviewer / Error in assigning reviewer");
 		} finally {
 
 			try {
@@ -1730,9 +1908,96 @@ public class WorkflowDaoImpl implements WorkflowDao {
 		return "Reviewer Assignment Successfull";
 	}
 
+	
+	private boolean notValidDoc(int trId) {
+		Connection conn = null;
+		PreparedStatement pstmt = null;
+		ResultSet rs = null;
+		int count = 0;
+
+		try {
+			conn = ConnectionPool.getConnection();
+			pstmt = conn
+					.prepareStatement("Select count(*) from trdocument where TrID=?");
+			pstmt.setInt(1, trId);
+			rs = pstmt.executeQuery();
+			while (rs.next()) {
+				count = rs.getInt(1);
+			}
+		} catch (SQLException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		} finally {
+
+			try {
+				if (pstmt != null)
+					pstmt.close();
+
+				if (conn != null)
+					conn.close();
+
+			} catch (SQLException e) {
+				// TODO Auto-generated catch block
+				e.printStackTrace();
+			}
+		}
+
+		if (count == 0) {
+			return true;
+		} else
+			return false;
+	}
+
+	
+	
+	private boolean isAlreadyAssigned(int trId, int userId) {
+		/*
+		 * Returns false if the reviewer not already assigned
+		 */
+
+		Connection conn = null;
+		PreparedStatement pstmt = null;
+		ResultSet rs = null;
+		int count = 0;
+
+		try {
+			conn = ConnectionPool.getConnection();
+			pstmt = conn
+					.prepareStatement("select count(*) from reviewer_task where TrID=? and UserID=?");
+			pstmt.setInt(1, trId);
+			pstmt.setInt(2, userId);
+			rs = pstmt.executeQuery();
+			while (rs.next()) {
+				count = rs.getInt(1);
+			}
+		} catch (SQLException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		} finally {
+
+			try {
+				if (pstmt != null)
+					pstmt.close();
+
+				if (conn != null)
+					conn.close();
+
+			} catch (SQLException e) {
+				// TODO Auto-generated catch block
+				e.printStackTrace();
+			}
+		}
+
+		if (count == 0)
+			return false;
+		else
+			return true;
+	}
+
+	
 	@Override
 	public String getReviewers(int trId) {
-		
+		// TODO Auto-generated method stub
 		Connection conn = null;
 		PreparedStatement pstmt = null;
 		ResultSet rs = null;
@@ -1773,9 +2038,10 @@ public class WorkflowDaoImpl implements WorkflowDao {
 		return result.toString();
 	}
 
+	
 	@Override
 	public String deleteReviewer(int TrID, int RevID) {
-		
+		// TODO Auto-generated method stub
 		Connection conn = null;
 		PreparedStatement pstmt = null;
 		int result = 0;
@@ -1811,14 +2077,15 @@ public class WorkflowDaoImpl implements WorkflowDao {
 		return null;
 	}
 
+	
 	@Override
 	public String acceptTask(int userId, int trId) {
-		
+		// TODO Auto-generated method stub
 		Connection conn = null;
 		PreparedStatement pstmt = null;
 		PreparedStatement pstmt1 = null;
-		//PreparedStatement pstmt2 = null;
-		//PreparedStatement pstmt3 = null;
+		// PreparedStatement pstmt2 = null;
+		// PreparedStatement pstmt3 = null;
 		PreparedStatement pstmt4 = null;
 		int rs;
 		int rs1;
@@ -1828,9 +2095,9 @@ public class WorkflowDaoImpl implements WorkflowDao {
 
 		try {
 			conn = ConnectionPool.getConnection();
-			
+
 			pstmt = conn
-					.prepareStatement("update trdocument set ReviewerCount=ReviewerCount+1, "
+					.prepareStatement("update trdocument set StateID=2,ReviewerCount=ReviewerCount+1, "
 							+ "CurrentCount=CurrentCount+1 where trId=?");
 			pstmt.setInt(1, trId);
 			rs = pstmt.executeUpdate();
@@ -1853,15 +2120,16 @@ public class WorkflowDaoImpl implements WorkflowDao {
 			 * rs1=pstmt1.executeUpdate();
 			 */
 
-			pstmt4 = conn.prepareStatement("Delete from reviewer_task where TrID=? and UserID=?");
+			pstmt4 = conn
+					.prepareStatement("Delete from reviewer_task where TrID=? and UserID=?");
 			pstmt4.setInt(1, trId);
 			pstmt4.setInt(2, userId);
 			rs4 = pstmt4.executeUpdate();
-			
+
 		} catch (SQLException e) {
 			// TODO Auto-generated catch block
 			e.printStackTrace();
-			return("Already assigned task");
+			return ("Already assigned task");
 		} finally {
 
 			try {
@@ -1873,10 +2141,10 @@ public class WorkflowDaoImpl implements WorkflowDao {
 
 				if (pstmt1 != null)
 					pstmt1.close();
-				
+
 				if (pstmt4 != null)
 					pstmt1.close();
-				
+
 			} catch (SQLException e) {
 				// TODO Auto-generated catch block
 				e.printStackTrace();
@@ -1885,14 +2153,14 @@ public class WorkflowDaoImpl implements WorkflowDao {
 
 		return "Task Accepted";
 		}
-		
 		else
-			return "The specified trdocument not assigned to you"; 
+			return "Cannot accept task not assigned to you";
 	}
 
+	
 	private boolean ishisTask(int userId, int trId) {
 		// TODO Auto-generated method stub
-		
+
 		Connection conn = null;
 		PreparedStatement pstmt = null;
 		ResultSet rs = null;
@@ -1905,8 +2173,8 @@ public class WorkflowDaoImpl implements WorkflowDao {
 			pstmt.setInt(2, trId);
 			rs = pstmt.executeQuery();
 			while (rs.next()) {
-				int count=rs.getInt(1);
-				if(count==0)
+				int count = rs.getInt(1);
+				if (count == 0)
 					return false;
 				else
 					return true;
@@ -1932,13 +2200,13 @@ public class WorkflowDaoImpl implements WorkflowDao {
 			}
 		}
 
-
 		return false;
 	}
 
+	
 	@Override
 	public String showTasks(int userId) {
-		
+		// TODO Auto-generated method stub
 		Connection conn = null;
 		PreparedStatement pstmt = null;
 		PreparedStatement pstmt1 = null;
@@ -2014,42 +2282,85 @@ public class WorkflowDaoImpl implements WorkflowDao {
 
 		return result.toString();
 	}
+
 	
 	@Override
 	public String rejectTask(int userId, int trId) {
-		
+		// TODO Auto-generated method stub
 		Connection conn = null;
 		PreparedStatement pstmt = null;
-	/*	PreparedStatement pstmt1 = null;
+		PreparedStatement pstmt1 = null;
 		PreparedStatement pstmt2 = null;
-		PreparedStatement pstmt3 = null;*/
+		PreparedStatement pstmt3 = null;
 		PreparedStatement pstmt4 = null;
 		int rs;
 		int rs1;
 		int rs4;
 
+		if (ishisTask(userId, trId)) {
+
+			try {
+				conn = ConnectionPool.getConnection();
+
+				/*
+				 * pstmt3=conn.prepareStatement(
+				 * "select RevTaskID from doc_review where ");
+				 * pstmt3.setInt(1,userId); pstmt3.setInt(2, trId);
+				 * rs1=pstmt3.executeUpdate();
+				 * 
+				 * pstmt2=conn.prepareStatement(
+				 * "Insert into notification_review_task StateID,UserID,TrID values(2,?,?)"
+				 * ); pstmt2.setInt(1,userId); pstmt2.setInt(2, trId);
+				 * rs1=pstmt1.executeUpdate();
+				 */
+
+				pstmt4 = conn
+						.prepareStatement("Delete from reviewer_task where TrID=? and UserID=?");
+				pstmt4.setInt(1, trId);
+				pstmt4.setInt(2, userId);
+				rs4 = pstmt4.executeUpdate();
+			} catch (SQLException e) {
+				// TODO Auto-generated catch block
+				e.printStackTrace();
+			} finally {
+
+				try {
+					if (pstmt != null)
+						pstmt.close();
+
+					if (conn != null)
+						conn.close();
+
+				} catch (SQLException e) {
+					// TODO Auto-generated catch block
+					e.printStackTrace();
+				}
+			}
+
+			return "Task Rejected";
+		} else
+			return "Cannot Reject task not Assigned to you";
+
+	}
+
+	
+	@Override
+	public String publishTR(int trId) {
+		Connection conn = null;
+		PreparedStatement pstmt = null;
+		PreparedStatement pstmt1 = null;
+		int rs = 0;
+
 		try {
 			conn = ConnectionPool.getConnection();
-			
-			/*
-			 * pstmt3=conn.prepareStatement(
-			 * "select RevTaskID from doc_review where ");
-			 * pstmt3.setInt(1,userId); pstmt3.setInt(2, trId);
-			 * rs1=pstmt3.executeUpdate();
-			 * 
-			 * pstmt2=conn.prepareStatement(
-			 * "Insert into notification_review_task StateID,UserID,TrID values(2,?,?)"
-			 * ); pstmt2.setInt(1,userId); pstmt2.setInt(2, trId);
-			 * rs1=pstmt1.executeUpdate();
-			 */
+			pstmt = conn
+					.prepareStatement("update trdocument set StateID=5 where StateID=4 and TrID=?");
+			pstmt.setInt(1, trId);
 
-			pstmt4 = conn.prepareStatement("Delete from reviewer_task where TrID=? and UserID=?");
-			pstmt4.setInt(1, trId);
-			pstmt4.setInt(2, userId);
-			rs4 = pstmt4.executeUpdate();
 		} catch (SQLException e) {
 			// TODO Auto-generated catch block
 			e.printStackTrace();
+			return "Cannot Publish TRdocument until it is Ready for Publication";
 		} finally {
 
 			try {
@@ -2058,18 +2369,18 @@ public class WorkflowDaoImpl implements WorkflowDao {
 
 				if (conn != null)
 					conn.close();
-				
+
+				if (pstmt1 != null)
+					pstmt1.close();
+
 			} catch (SQLException e) {
 				// TODO Auto-generated catch block
 				e.printStackTrace();
 			}
 		}
 
-		return "Task Rejected";
-
+		return "Document Published Successfully";
 	}
 
-
-	
 
 }

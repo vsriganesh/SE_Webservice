@@ -1,0 +1,42 @@
+Delete Document : [DELETE]
+
+http://localhost:8080/TDWorkflow/workflow/doc/{trid}/{auth_id}
+
+Role : Admin , Author 
+State : Not in PUBLISHED
+
+
+
+
+
+Reviewer Assignment : [POST]
+
+http://localhost:8080/TDWorkflow/workflow/admin/{auth}/{UserID}/{TrID}
+
+Role :Admin
+State : Reviewer Assignment Pending (or) Reviewer/Reviewers Comments Pending
+
+Constraints : Author cannot be reviewer
+
+
+
+
+Create User : [POST]
+
+http://localhost:8080/TDWorkflow/workflow/users/{auth_id}
+
+Role: Admin
+Consumes : application/json
+	   
+{
+"username":"Test",
+"email":"test@gmail.com",
+"role":"normal"
+}
+
+
+Constraints : Reviewer must be an user in the system
+
+
+
+
